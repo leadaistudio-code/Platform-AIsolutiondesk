@@ -9,7 +9,9 @@
 // ════════════════════════════════════════════════════════════════════════
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // "native" covers local dev; the debian target covers the Docker deploy image.
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {

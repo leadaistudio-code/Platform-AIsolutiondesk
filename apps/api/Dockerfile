@@ -1,6 +1,12 @@
 # Production image for the AISOLUTIONDESK API (and worker).
 # Build context must be the repo ROOT:  docker build -f apps/api/Dockerfile .
-FROM node:20-alpine
+# Debian-based (not Alpine) so Prisma's engine finds OpenSSL.
+FROM node:20-slim
+
+# OpenSSL + CA certs are required by Prisma's query/schema engines.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 
 # pnpm via corepack
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
