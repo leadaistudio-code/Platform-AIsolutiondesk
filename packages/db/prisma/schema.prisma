@@ -1,0 +1,763 @@
+// ════════════════════════════════════════════════════════════════════════
+//  AISOLUTIONDESK — Prisma schema
+//  Multi-tenant. Every business object is scoped by `organizationId`.
+//  Conventions:
+//    - cuid() ids
+//    - createdAt/updatedAt on every mutable model
+//    - composite index [organizationId, ...] on every tenant-scoped query path
+//    - vectors live in Qdrant; rows here hold metadata + the Qdrant point id
+// ════════════════════════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+//  ENUMS
+// ─────────────────────────────────────────────────────────────
+
+enum Product {
+  SERVICE_DESK
+  EMPLOYEE_ASSISTANT
+  SALES_AGENT
+}
+
+enum Role {
+  OWNER // billing + everything
+  ADMIN // manage org, members, integrations
+  MANAGER // manage workflows, agents, content
+  AGENT // operate (handle tickets, run outreach)
+  MEMBER // standard end-user
+  VIEWER // read-only
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+}
+
+enum PlanTier {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum IntegrationProvider {
+  JIRA
+  SERVICENOW
+  SLACK
+  MS_TEAMS
+  SHAREPOINT
+  GOOGLE_DRIVE
+  SALESFORCE
+  HUBSPOT
+  LINKEDIN
+  WHATSAPP
+  GMAIL
+  OUTLOOK
+}
+
+enum IntegrationStatus {
+  CONNECTED
+  DISCONNECTED
+  ERROR
+}
+
+enum DocumentStatus {
+  PENDING
+  PROCESSING
+  INDEXED
+  FAILED
+}
+
+enum ConversationChannel {
+  WEB
+  SLACK
+  TEAMS
+  EMAIL
+  VOICE
+  API
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+  TOOL
+}
+
+enum AgentRunStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+enum WorkflowTrigger {
+  EVENT
+  SCHEDULE
+  WEBHOOK
+  MANUAL
+}
+
+enum WorkflowRunStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+enum MemoryScope {
+  ORGANIZATION
+  USER
+  CONVERSATION
+}
+
+// ── Service Desk ──
+enum TicketStatus {
+  NEW
+  TRIAGED
+  IN_PROGRESS
+  WAITING
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// ── Sales ──
+enum LeadStatus {
+  NEW
+  QUALIFIED
+  CONTACTED
+  ENGAGED
+  PROPOSAL
+  WON
+  LOST
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+enum OutreachChannel {
+  EMAIL
+  LINKEDIN
+  WHATSAPP
+  SMS
+}
+
+enum OutreachStatus {
+  DRAFT
+  SCHEDULED
+  SENT
+  DELIVERED
+  OPENED
+  REPLIED
+  BOUNCED
+  FAILED
+}
+
+// ═════════════════════════════════════════════════════════════
+//  PLATFORM CORE — tenancy, identity, RBAC, billing, audit
+// ═════════════════════════════════════════════════════════════
+
+/// A tenant. Mirrors a Clerk Organization (clerkOrgId).
+model Organization {
+  id         String   @id @default(cuid())
+  clerkOrgId String   @unique
+  name       String
+  slug       String   @unique
+  logoUrl    String?
+  // Which products this tenant has enabled
+  products   Product[]
+  settings   Json     @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  memberships     Membership[]
+  apiKeys         ApiKey[]
+  subscription    Subscription?
+  usageRecords    UsageRecord[]
+  integrations    Integration[]
+  auditLogs       AuditLog[]
+  documents       Document[]
+  knowledgeSources KnowledgeSource[]
+  departments     Department[]
+  conversations   Conversation[]
+  agentRuns       AgentRun[]
+  memories        MemoryRecord[]
+  workflows       Workflow[]
+  // Product data
+  tickets         Ticket[]
+  slaPolicies     SlaPolicy[]
+  knowledgeArticles KnowledgeArticle[]
+  leads           Lead[]
+  campaigns       Campaign[]
+  outreaches      Outreach[]
+  proposals       Proposal[]
+
+  @@index([slug])
+}
+
+/// A platform user. Mirrors a Clerk user (clerkUserId).
+model User {
+  id          String   @id @default(cuid())
+  clerkUserId String   @unique
+  email       String   @unique
+  name        String?
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  memberships   Membership[]
+  auditLogs     AuditLog[]
+  conversations Conversation[]
+  assignedTickets Ticket[] @relation("TicketAssignee")
+}
+
+/// Join of User ↔ Organization carrying the tenant-scoped Role (RBAC).
+model Membership {
+  id             String           @id @default(cuid())
+  organizationId String
+  userId         String
+  role           Role             @default(MEMBER)
+  status         MembershipStatus @default(ACTIVE)
+  // Optional fine-grained product access overrides
+  productAccess  Product[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId, role])
+  @@index([userId])
+}
+
+/// Scoped, hashed API keys for programmatic access.
+model ApiKey {
+  id             String    @id @default(cuid())
+  organizationId String
+  name           String
+  prefix         String    @unique // shown to user, e.g. "ask_live_abcd"
+  hashedKey      String    @unique // sha256(secret)
+  scopes         String[]  // e.g. ["tickets:read","leads:write"]
+  lastUsedAt     DateTime?
+  expiresAt      DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  organizationId       String             @unique
+  tier                 PlanTier           @default(FREE)
+  status               SubscriptionStatus @default(TRIALING)
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
+  seats                Int                @default(5)
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+/// Metered usage for billing + cost control (per product / model).
+model UsageRecord {
+  id             String   @id @default(cuid())
+  organizationId String
+  product        Product
+  metric         String   // "tokens.input", "tokens.output", "agent.runs", "documents.ingested"
+  model          String?  // e.g. "gpt-4o-mini"
+  quantity       Int
+  costCents      Int      @default(0)
+  periodKey      String   // "2026-05" for fast aggregation
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, periodKey])
+  @@index([organizationId, product, metric])
+}
+
+/// Per-tenant external connector. `credentials` is encrypted at rest (AES-256-GCM).
+model Integration {
+  id             String              @id @default(cuid())
+  organizationId String
+  provider       IntegrationProvider
+  status         IntegrationStatus   @default(CONNECTED)
+  displayName    String?
+  credentials    Bytes // encrypted blob; never returned to clients
+  config         Json    @default("{}")
+  lastSyncedAt   DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeSources KnowledgeSource[]
+
+  @@unique([organizationId, provider])
+  @@index([organizationId])
+}
+
+/// Immutable audit trail of privileged actions.
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String?
+  action         String   // "ticket.assigned", "integration.connected"
+  resource       String   // "Ticket"
+  resourceId     String?
+  metadata       Json     @default("{}")
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, resource, resourceId])
+}
+
+// ═════════════════════════════════════════════════════════════
+//  AI CORE — documents/RAG, conversations, agent runs, memory
+// ═════════════════════════════════════════════════════════════
+
+/// A knowledge source feeding RAG (a connector or upload bucket).
+model KnowledgeSource {
+  id             String   @id @default(cuid())
+  organizationId String
+  product        Product
+  name           String
+  integrationId  String?  // null = direct upload
+  config         Json     @default("{}")
+  lastSyncedAt   DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  integration  Integration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
+  documents    Document[]
+
+  @@index([organizationId, product])
+}
+
+/// A document ingested for RAG. Chunks are embedded into Qdrant.
+model Document {
+  id              String         @id @default(cuid())
+  organizationId  String
+  knowledgeSourceId String?
+  product         Product
+  title           String
+  mimeType        String?
+  sourceUri       String?  // original location (Drive/SharePoint url or storage key)
+  status          DocumentStatus @default(PENDING)
+  // Restrict visibility (department / role tags) for permissioned RAG
+  accessTags      String[]
+  metadata        Json     @default("{}")
+  error           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeSource KnowledgeSource? @relation(fields: [knowledgeSourceId], references: [id], onDelete: SetNull)
+  chunks          DocumentChunk[]
+
+  @@index([organizationId, product, status])
+}
+
+/// One embedded chunk. `qdrantPointId` links to the vector in Qdrant.
+model DocumentChunk {
+  id             String   @id @default(cuid())
+  organizationId String
+  documentId     String
+  chunkIndex     Int
+  content        String
+  tokenCount     Int      @default(0)
+  qdrantPointId  String   @unique
+  createdAt      DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, chunkIndex])
+  @@index([organizationId, documentId])
+}
+
+/// A chat thread (any product, any channel).
+model Conversation {
+  id             String              @id @default(cuid())
+  organizationId String
+  product        Product
+  channel        ConversationChannel @default(WEB)
+  userId         String?
+  title          String?
+  agentKey       String?  // which configured agent handles this thread
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  messages     Message[]
+  agentRuns    AgentRun[]
+
+  @@index([organizationId, product, updatedAt])
+  @@index([organizationId, userId])
+}
+
+model Message {
+  id             String      @id @default(cuid())
+  organizationId String
+  conversationId String
+  role           MessageRole
+  content        String
+  // tool calls / citations / token usage
+  toolCalls      Json?
+  citations      Json?
+  tokensInput    Int         @default(0)
+  tokensOutput   Int         @default(0)
+  createdAt      DateTime    @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([organizationId, createdAt])
+}
+
+/// A single execution of an agent graph (telemetry + replay).
+model AgentRun {
+  id             String         @id @default(cuid())
+  organizationId String
+  product        Product
+  agentKey       String         // "service_desk.triage", "sales.qualifier"
+  conversationId String?
+  status         AgentRunStatus @default(QUEUED)
+  input          Json
+  output         Json?
+  // Ordered list of node executions / tool calls for tracing
+  steps          Json     @default("[]")
+  tokensInput    Int      @default(0)
+  tokensOutput   Int      @default(0)
+  costCents      Int      @default(0)
+  error          String?
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  createdAt      DateTime @default(now())
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, product, status])
+  @@index([organizationId, agentKey, createdAt])
+}
+
+/// Long-term memory pointer. Vector lives in Qdrant; this row is metadata + recall stats.
+model MemoryRecord {
+  id             String      @id @default(cuid())
+  organizationId String
+  scope          MemoryScope
+  scopeRefId     String?     // userId or conversationId depending on scope
+  product        Product?
+  kind           String      // "fact", "preference", "summary", "entity"
+  content        String
+  qdrantPointId  String      @unique
+  importance     Float       @default(0.5)
+  lastRecalledAt DateTime?
+  recallCount    Int         @default(0)
+  expiresAt      DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, scope, scopeRefId])
+}
+
+// ═════════════════════════════════════════════════════════════
+//  WORKFLOW ENGINE — event/schedule/webhook-triggered automations
+// ═════════════════════════════════════════════════════════════
+
+model Workflow {
+  id             String          @id @default(cuid())
+  organizationId String
+  product        Product
+  name           String
+  description    String?
+  enabled        Boolean         @default(true)
+  trigger        WorkflowTrigger
+  // event name, cron expression, or webhook token depending on trigger
+  triggerConfig  Json            @default("{}")
+  // DAG of nodes: [{ id, type, config, next: [] }]
+  definition     Json
+  version        Int             @default(1)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  runs         WorkflowRun[]
+
+  @@index([organizationId, product, enabled])
+  @@index([organizationId, trigger])
+}
+
+model WorkflowRun {
+  id          String            @id @default(cuid())
+  organizationId String
+  workflowId  String
+  status      WorkflowRunStatus @default(PENDING)
+  triggeredBy String            // event id, "schedule", "manual:userId"
+  input       Json              @default("{}")
+  // per-node execution log
+  steps       Json              @default("[]")
+  output      Json?
+  error       String?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime          @default(now())
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId, status])
+  @@index([organizationId, createdAt])
+}
+
+// ═════════════════════════════════════════════════════════════
+//  PRODUCT 1 — AI SERVICE DESK
+// ═════════════════════════════════════════════════════════════
+
+model Ticket {
+  id             String         @id @default(cuid())
+  organizationId String
+  externalId     String?        // Jira/ServiceNow key
+  externalSource IntegrationProvider?
+  subject        String
+  description    String
+  status         TicketStatus   @default(NEW)
+  priority       TicketPriority @default(MEDIUM)
+  // AI-generated fields
+  category       String?
+  aiSummary      String?
+  aiRootCause    String?
+  aiSuggestedActions Json?
+  sentiment      Float?
+  assigneeId     String?
+  requesterEmail String?
+  slaPolicyId    String?
+  slaDueAt       DateTime?
+  slaBreached    Boolean        @default(false)
+  resolvedAt     DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignee     User?        @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  slaPolicy    SlaPolicy?   @relation(fields: [slaPolicyId], references: [id], onDelete: SetNull)
+  events       TicketEvent[]
+
+  @@unique([organizationId, externalSource, externalId])
+  @@index([organizationId, status, priority])
+  @@index([organizationId, assigneeId])
+  @@index([organizationId, slaDueAt])
+}
+
+model TicketEvent {
+  id        String   @id @default(cuid())
+  ticketId  String
+  type      String   // "comment", "status_change", "ai_triage", "assignment"
+  actor     String   // userId | "system" | "ai"
+  payload   Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+}
+
+model SlaPolicy {
+  id               String         @id @default(cuid())
+  organizationId   String
+  name             String
+  priority         TicketPriority
+  responseMinutes  Int
+  resolutionMinutes Int
+  enabled          Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tickets      Ticket[]
+
+  @@unique([organizationId, priority])
+}
+
+model KnowledgeArticle {
+  id             String   @id @default(cuid())
+  organizationId String
+  title          String
+  body           String
+  tags           String[]
+  published      Boolean  @default(false)
+  // AI-suggested article generated from resolved incidents
+  aiGenerated    Boolean  @default(false)
+  viewCount      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, published])
+}
+
+// ═════════════════════════════════════════════════════════════
+//  PRODUCT 2 — AI EMPLOYEE ASSISTANT
+//  (uses Document/KnowledgeSource/Conversation above; adds Department)
+// ═════════════════════════════════════════════════════════════
+
+model Department {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String   // "HR", "IT", "Finance"
+  description    String?
+  // Department-specific agent persona / system prompt
+  agentConfig    Json     @default("{}")
+  // RAG access tags this department's agent may read
+  accessTags     String[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, name])
+}
+
+// ═════════════════════════════════════════════════════════════
+//  PRODUCT 3 — AI SALES AUTOMATION AGENT
+// ═════════════════════════════════════════════════════════════
+
+model Lead {
+  id             String     @id @default(cuid())
+  organizationId String
+  // CRM linkage
+  externalId     String?
+  externalSource IntegrationProvider?
+  fullName       String
+  email          String?
+  company        String?
+  title          String?
+  linkedinUrl    String?
+  phone          String?
+  status         LeadStatus @default(NEW)
+  // AI fields
+  score          Int        @default(0) // 0-100
+  scoreReason    String?
+  aiQualification Json?
+  enrichment     Json?
+  ownerId        String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  outreaches   Outreach[]
+  proposals    Proposal[]
+
+  @@index([organizationId, status, score])
+  @@index([organizationId, ownerId])
+}
+
+model Campaign {
+  id             String         @id @default(cuid())
+  organizationId String
+  name           String
+  status         CampaignStatus @default(DRAFT)
+  channels       OutreachChannel[]
+  // Targeting + sequence definition (steps, delays, templates)
+  audience       Json           @default("{}")
+  sequence       Json           @default("[]")
+  startedAt      DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  outreaches   Outreach[]
+
+  @@index([organizationId, status])
+}
+
+model Outreach {
+  id             String          @id @default(cuid())
+  organizationId String
+  leadId         String
+  campaignId     String?
+  channel        OutreachChannel
+  status         OutreachStatus  @default(DRAFT)
+  subject        String?
+  body           String
+  aiGenerated    Boolean         @default(true)
+  sequenceStep   Int             @default(0)
+  scheduledAt    DateTime?
+  sentAt         DateTime?
+  repliedAt      DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  campaign     Campaign?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status, scheduledAt])
+  @@index([leadId])
+  @@index([campaignId])
+}
+
+model Proposal {
+  id             String   @id @default(cuid())
+  organizationId String
+  leadId         String?
+  title          String
+  // Generated document (markdown/HTML) + structured line items
+  content        String
+  lineItems      Json     @default("[]")
+  totalCents     Int      @default(0)
+  currency       String   @default("USD")
+  status         String   @default("DRAFT") // DRAFT|SENT|VIEWED|ACCEPTED|REJECTED
+  sentAt         DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead         Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+}
