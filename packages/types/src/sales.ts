@@ -68,3 +68,35 @@ export interface OutreachDTO {
 export interface LeadDetailDTO extends LeadDTO {
   outreaches: OutreachDTO[];
 }
+
+// ── Campaigns ──
+export const CAMPAIGN_STATUSES = ['DRAFT', 'ACTIVE', 'PAUSED', 'COMPLETED'] as const;
+export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number];
+
+export const CreateCampaignSchema = z.object({
+  name: z.string().trim().min(2).max(200),
+  channels: z.array(z.enum(OUTREACH_CHANNELS)).min(1, 'Pick at least one channel.'),
+  description: z.string().trim().max(2000).optional(),
+});
+export type CreateCampaignInput = z.infer<typeof CreateCampaignSchema>;
+
+export const UpdateCampaignSchema = z
+  .object({ status: z.enum(CAMPAIGN_STATUSES).optional() })
+  .refine((v) => Object.keys(v).length > 0, { message: 'Nothing to update.' });
+export type UpdateCampaignInput = z.infer<typeof UpdateCampaignSchema>;
+
+export interface CampaignDTO {
+  id: string;
+  name: string;
+  status: CampaignStatus;
+  channels: OutreachChannel[];
+  outreachCount: number;
+  createdAt: string;
+}
+
+// ── Outreach hub (all messages across leads) ──
+export interface OutreachListItemDTO extends OutreachDTO {
+  leadId: string;
+  leadName: string;
+  company: string | null;
+}

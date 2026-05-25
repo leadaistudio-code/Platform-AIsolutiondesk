@@ -1,6 +1,8 @@
 import type {
   AssistantAnswer,
   AssistantQueryInput,
+  CampaignDTO,
+  CreateCampaignInput,
   CreateDocumentInput,
   CreateLeadInput,
   CreateTicketInput,
@@ -9,9 +11,11 @@ import type {
   LeadDTO,
   LeadDetailDTO,
   OutreachDTO,
+  OutreachListItemDTO,
   TicketDTO,
   TicketDetailDTO,
   TicketStatsDTO,
+  UpdateCampaignInput,
   UpdateLeadInput,
   UpdateTicketInput,
 } from '@aisolutiondesk/types';
@@ -99,6 +103,17 @@ export function buildApi(getToken: TokenGetter) {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+
+    // Campaigns + outreach hub
+    listCampaigns: () => request<CampaignDTO[]>('/campaigns'),
+    createCampaign: (body: CreateCampaignInput) =>
+      request<CampaignDTO>('/campaigns', { method: 'POST', body: JSON.stringify(body) }),
+    updateCampaign: (id: string, body: UpdateCampaignInput) =>
+      request<CampaignDTO>(`/campaigns/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    listOutreach: () => request<OutreachListItemDTO[]>('/outreach'),
   };
 }
 

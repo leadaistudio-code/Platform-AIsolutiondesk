@@ -16,6 +16,7 @@ import type {
   LeadDTO,
   LeadDetailDTO,
   OutreachDTO,
+  OutreachListItemDTO,
   UpdateLeadInput,
 } from '@aisolutiondesk/types';
 import type { RequestContext } from '../../common/context/request-context';
@@ -76,6 +77,27 @@ export class LeadsService {
         createdAt: o.createdAt.toISOString(),
       })),
     };
+  }
+
+  /** All outreach messages across every lead, for the AI Outreach hub. */
+  async listAllOutreach(ctx: RequestContext): Promise<OutreachListItemDTO[]> {
+    const db = forTenant(ctx.organizationId);
+    const items = await db.outreach.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { lead: { select: { id: true, fullName: true, company: true } } },
+      take: 200,
+    });
+    return items.map((o) => ({
+      id: o.id,
+      channel: o.channel,
+      status: o.status,
+      subject: o.subject,
+      body: o.body,
+      createdAt: o.createdAt.toISOString(),
+      leadId: o.lead.id,
+      leadName: o.lead.fullName,
+      company: o.lead.company,
+    }));
   }
 
   async create(ctx: RequestContext, input: CreateLeadInput): Promise<LeadDTO> {
