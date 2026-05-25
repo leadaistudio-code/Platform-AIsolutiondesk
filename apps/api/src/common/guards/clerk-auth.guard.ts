@@ -91,10 +91,16 @@ export class ClerkAuthGuard implements CanActivate {
 
   private async verifyClerkToken(token: string): Promise<RequestAuth> {
     try {
-      const claims = await verifyToken(token, {
+      const claims = (await verifyToken(token, {
         secretKey: env.CLERK_SECRET_KEY,
-      });
-      if (!claims.org_id) {
+      })) as Record<string, any>;
+
+      // Clerk's older session tokens use `org_id`/`org_role`; newer (v2) tokens
+      // nest org info under `o` ({ id, rol, slg }). Support both.
+      const orgId: string | undefined = claims.org_id ?? claims.o?.id;
+      const orgRole: string | undefined = claims.org_role ?? claims.o?.rol;
+
+      if (!orgId) {
         throw new UnauthorizedException(
           'No active organization selected for this session',
         );
@@ -102,8 +108,8 @@ export class ClerkAuthGuard implements CanActivate {
       return {
         kind: 'user',
         clerkUserId: claims.sub,
-        clerkOrgId: claims.org_id as string,
-        clerkOrgRole: (claims.org_role as string) ?? 'org:member',
+        clerkOrgId: orgId,
+        clerkOrgRole: orgRole ?? 'member',
       };
     } catch (err) {
       // Surface Clerk's actual reason (e.g. token-invalid-signature => key

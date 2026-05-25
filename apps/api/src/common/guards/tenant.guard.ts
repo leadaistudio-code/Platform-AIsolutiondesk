@@ -28,8 +28,11 @@ export class TenantGuard implements CanActivate {
   ) {}
 
   private mapRole(clerkRole?: string): Role {
-    // The org creator is "org:admin" in Clerk; give them full (OWNER) access.
-    return clerkRole === 'org:admin' ? Role.OWNER : Role.MEMBER;
+    // The org creator is admin in Clerk ("org:admin" in v1 tokens, "admin" in
+    // v2). Give admins full (OWNER) access.
+    return clerkRole === 'org:admin' || clerkRole === 'admin'
+      ? Role.OWNER
+      : Role.MEMBER;
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
