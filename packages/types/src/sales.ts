@@ -100,3 +100,60 @@ export interface OutreachListItemDTO extends OutreachDTO {
   leadName: string;
   company: string | null;
 }
+
+// ── Proposals ──
+export const GenerateProposalSchema = z.object({
+  leadId: z.string().min(1),
+  notes: z.string().trim().max(2000).optional(),
+});
+export type GenerateProposalInput = z.infer<typeof GenerateProposalSchema>;
+
+export interface ProposalDTO {
+  id: string;
+  leadId: string | null;
+  leadName: string | null;
+  title: string;
+  content: string;
+  status: string;
+  createdAt: string;
+}
+
+// ── Sales analytics ──
+export interface SalesAnalyticsDTO {
+  totalLeads: number;
+  qualified: number;
+  won: number;
+  lost: number;
+  outreachCount: number;
+  proposalCount: number;
+  avgScore: number;
+  byStatus: { status: LeadStatus; count: number }[];
+  scoreBuckets: { label: string; count: number }[];
+}
+
+// ── AI insights ──
+export interface SalesInsight {
+  title: string;
+  detail: string;
+  severity: 'info' | 'opportunity' | 'risk';
+}
+export interface SalesInsightsDTO {
+  summary: string;
+  insights: SalesInsight[];
+}
+
+// ── CRM sync ──
+export const CRM_PROVIDERS = ['SALESFORCE', 'HUBSPOT'] as const;
+export type CrmProvider = (typeof CRM_PROVIDERS)[number];
+
+export const ConnectCrmSchema = z.object({
+  provider: z.enum(CRM_PROVIDERS),
+  apiKey: z.string().trim().min(1, 'API key is required.'),
+});
+export type ConnectCrmInput = z.infer<typeof ConnectCrmSchema>;
+
+export interface CrmConnectionDTO {
+  provider: CrmProvider;
+  status: 'CONNECTED' | 'DISCONNECTED' | 'ERROR';
+  connectedAt: string | null;
+}

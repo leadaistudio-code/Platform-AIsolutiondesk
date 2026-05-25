@@ -2,16 +2,23 @@ import type {
   AssistantAnswer,
   AssistantQueryInput,
   CampaignDTO,
+  ConnectCrmInput,
   CreateCampaignInput,
   CreateDocumentInput,
   CreateLeadInput,
   CreateTicketInput,
+  CrmConnectionDTO,
+  CrmProvider,
   DocumentDTO,
   GenerateOutreachInput,
+  GenerateProposalInput,
   LeadDTO,
   LeadDetailDTO,
   OutreachDTO,
   OutreachListItemDTO,
+  ProposalDTO,
+  SalesAnalyticsDTO,
+  SalesInsightsDTO,
   TicketDTO,
   TicketDetailDTO,
   TicketStatsDTO,
@@ -114,6 +121,28 @@ export function buildApi(getToken: TokenGetter) {
         body: JSON.stringify(body),
       }),
     listOutreach: () => request<OutreachListItemDTO[]>('/outreach'),
+
+    // Proposals
+    listProposals: () => request<ProposalDTO[]>('/proposals'),
+    generateProposal: (body: GenerateProposalInput) =>
+      request<ProposalDTO>('/proposals/generate', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    // Sales analytics + insights
+    getSalesAnalytics: () => request<SalesAnalyticsDTO>('/sales/analytics'),
+    getSalesInsights: () => request<SalesInsightsDTO>('/sales/insights'),
+
+    // CRM connections
+    listCrm: () => request<CrmConnectionDTO[]>('/crm'),
+    connectCrm: (body: ConnectCrmInput) =>
+      request<CrmConnectionDTO>('/crm/connect', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    disconnectCrm: (provider: CrmProvider) =>
+      request<void>(`/crm/${provider}`, { method: 'DELETE' }),
   };
 }
 
