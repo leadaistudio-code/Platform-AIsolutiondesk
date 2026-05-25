@@ -105,8 +105,14 @@ export class ClerkAuthGuard implements CanActivate {
         clerkOrgId: claims.org_id as string,
         clerkOrgRole: (claims.org_role as string) ?? 'org:member',
       };
-    } catch {
-      throw new UnauthorizedException('Invalid or expired session token');
+    } catch (err) {
+      // Surface Clerk's actual reason (e.g. token-invalid-signature => key
+      // mismatch; token-expired => clock skew) to make debugging possible.
+      const reason =
+        (err as { reason?: string })?.reason ??
+        (err as Error)?.message ??
+        'unknown';
+      throw new UnauthorizedException(`Invalid session token: ${reason}`);
     }
   }
 
