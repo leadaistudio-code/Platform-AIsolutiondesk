@@ -1,0 +1,57 @@
+import { z } from 'zod';
+
+/**
+ * Shared contracts for the AI Social Media Auto-Post product.
+ * Mirrors the n8n flow: generate -> review -> approve/reject -> post.
+ */
+
+export const SOCIAL_POST_STATUSES = [
+  'DRAFT',
+  'PENDING_APPROVAL',
+  'APPROVED',
+  'REJECTED',
+  'POSTED',
+] as const;
+export type SocialPostStatus = (typeof SOCIAL_POST_STATUSES)[number];
+
+export const SOCIAL_PLATFORMS = ['LINKEDIN', 'X'] as const;
+export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[number];
+
+/**
+ * Body for POST /social/generate. If `topic` is omitted, the AI picks a topic
+ * automatically (the "random topic" path from the n8n flow).
+ */
+export const GenerateSocialPostSchema = z.object({
+  topic: z.string().trim().min(3).max(500).optional(),
+});
+export type GenerateSocialPostInput = z.infer<typeof GenerateSocialPostSchema>;
+
+export const ReviewSocialPostSchema = z
+  .object({
+    approve: z.boolean(),
+    reason: z.string().trim().max(500).optional(),
+  })
+  .refine((v) => v.approve || (v.reason && v.reason.length > 0), {
+    message: 'A reason is required when rejecting.',
+    path: ['reason'],
+  });
+export type ReviewSocialPostInput = z.infer<typeof ReviewSocialPostSchema>;
+
+export const MarkSocialPostedSchema = z.object({
+  platform: z.enum(SOCIAL_PLATFORMS),
+});
+export type MarkSocialPostedInput = z.infer<typeof MarkSocialPostedSchema>;
+
+export interface SocialPostDTO {
+  id: string;
+  topic: string;
+  linkedinText: string;
+  xText: string;
+  status: SocialPostStatus;
+  approvedAt: string | null;
+  rejectedReason: string | null;
+  linkedinPostedAt: string | null;
+  xPostedAt: string | null;
+  autoPosted: boolean;
+  createdAt: string;
+}

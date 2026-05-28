@@ -19,6 +19,9 @@ import {
   Send,
   FileSignature,
   Lightbulb,
+  Share2,
+  PenSquare,
+  CheckSquare,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -29,7 +32,7 @@ export interface NavItem {
 }
 
 export interface ProductNav {
-  key: 'service-desk' | 'employee-assistant' | 'sales-agent';
+  key: 'service-desk' | 'employee-assistant' | 'sales-agent' | 'social-media';
   name: string;
   tagline: string;
   items: NavItem[];
@@ -82,6 +85,16 @@ export const PRODUCTS: ProductNav[] = [
       { label: 'Proposal Generator', href: '/sales/proposals', icon: FileSignature },
       { label: 'Analytics', href: '/sales/analytics', icon: BarChart3 },
       { label: 'AI Insights', href: '/sales/insights', icon: Lightbulb },
+    ],
+  },
+  {
+    key: 'social-media',
+    name: 'AI Social Media',
+    tagline: 'Auto-post + approvals',
+    items: [
+      { label: 'Feed', href: '/social', icon: Share2 },
+      { label: 'Generate Post', href: '/social/new', icon: PenSquare },
+      { label: 'Approvals', href: '/social/approvals', icon: CheckSquare },
     ],
   },
 ];

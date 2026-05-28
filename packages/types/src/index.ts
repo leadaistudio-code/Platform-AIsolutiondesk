@@ -3,6 +3,7 @@ import { z } from 'zod';
 export * from './tickets';
 export * from './assistant';
 export * from './sales';
+export * from './social';
 
 /**
  * Shared API contracts. These Zod schemas are validated at runtime on the

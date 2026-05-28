@@ -18,3 +18,4 @@ export * from './agents/sales/lead-scorer';
 export * from './agents/sales/outreach-writer';
 export * from './agents/sales/proposal-writer';
 export * from './agents/sales/pipeline-insights';
+export * from './agents/social/post-writer';

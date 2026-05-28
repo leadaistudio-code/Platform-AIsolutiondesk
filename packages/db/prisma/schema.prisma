@@ -26,6 +26,7 @@ datasource db {
 enum Product {
   SERVICE_DESK
   EMPLOYEE_ASSISTANT
+  SOCIAL_MEDIA
   SALES_AGENT
 }
 
@@ -222,6 +223,7 @@ model Organization {
   campaigns       Campaign[]
   outreaches      Outreach[]
   proposals       Proposal[]
+  socialPosts     SocialPost[]
 
   @@index([slug])
 }
@@ -762,4 +764,40 @@ model Proposal {
   lead         Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, status])
+}
+
+// ═════════════════════════════════════════════════════════════
+//  PRODUCT 4 — AI SOCIAL MEDIA AUTO-POST
+// ═════════════════════════════════════════════════════════════
+
+enum SocialPostStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  POSTED
+}
+
+model SocialPost {
+  id             String           @id @default(cuid())
+  organizationId String
+  topic          String
+  linkedinText   String
+  xText          String
+  status         SocialPostStatus @default(PENDING_APPROVAL)
+  // Approval audit
+  approvedById   String?
+  approvedAt     DateTime?
+  rejectedReason String?
+  // Posting audit
+  linkedinPostedAt DateTime?
+  xPostedAt        DateTime?
+  // True if a real platform API made the post; false = marked posted manually.
+  autoPosted     Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status, createdAt])
 }

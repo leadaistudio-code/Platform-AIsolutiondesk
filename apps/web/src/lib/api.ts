@@ -16,9 +16,13 @@ import type {
   LeadDetailDTO,
   OutreachDTO,
   OutreachListItemDTO,
+  GenerateSocialPostInput,
+  MarkSocialPostedInput,
   ProposalDTO,
+  ReviewSocialPostInput,
   SalesAnalyticsDTO,
   SalesInsightsDTO,
+  SocialPostDTO,
   TicketDTO,
   TicketDetailDTO,
   TicketStatsDTO,
@@ -143,6 +147,24 @@ export function buildApi(getToken: TokenGetter) {
       }),
     disconnectCrm: (provider: CrmProvider) =>
       request<void>(`/crm/${provider}`, { method: 'DELETE' }),
+
+    // ── Social Media Auto-Post ──
+    listSocialPosts: () => request<SocialPostDTO[]>('/social/posts'),
+    generateSocialPost: (body: GenerateSocialPostInput) =>
+      request<SocialPostDTO>('/social/posts/generate', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    reviewSocialPost: (id: string, body: ReviewSocialPostInput) =>
+      request<SocialPostDTO>(`/social/posts/${id}/review`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    markSocialPosted: (id: string, body: MarkSocialPostedInput) =>
+      request<SocialPostDTO>(`/social/posts/${id}/posted`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
   };
 }
 
