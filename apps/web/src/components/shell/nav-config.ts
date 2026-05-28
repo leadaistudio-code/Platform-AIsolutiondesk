@@ -95,6 +95,7 @@ export const PRODUCTS: ProductNav[] = [
       { label: 'Feed', href: '/social', icon: Share2 },
       { label: 'Generate Post', href: '/social/new', icon: PenSquare },
       { label: 'Approvals', href: '/social/approvals', icon: CheckSquare },
+      { label: 'Connections', href: '/social/connections', icon: Plug },
     ],
   },
 ];

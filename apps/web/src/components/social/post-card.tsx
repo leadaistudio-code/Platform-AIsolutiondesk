@@ -12,6 +12,10 @@ import {
   XCircle,
   Send,
   Loader2,
+  Heart,
+  MessageCircle,
+  RefreshCw,
+  Zap,
 } from 'lucide-react';
 import type { SocialPostDTO } from '@aisolutiondesk/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -86,8 +90,23 @@ export function SocialPostCard({ post }: { post: SocialPostDTO }) {
     }
   }
 
+  async function refreshMetrics() {
+    setBusy('metrics');
+    setError(null);
+    try {
+      await api.refreshSocialMetrics(post.id);
+      router.refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
   const canReview = post.status === 'PENDING_APPROVAL';
   const canPost = post.status === 'APPROVED' || post.status === 'POSTED';
+  const hasLinkedInPost = !!post.linkedinPostUrn;
+  const liMetrics = post.metrics?.linkedin;
 
   return (
     <Card>
@@ -96,9 +115,16 @@ export function SocialPostCard({ post }: { post: SocialPostDTO }) {
           <CardTitle className="flex items-center gap-2 text-base text-foreground">
             <Sparkles className="h-4 w-4 text-primary" /> {post.topic}
           </CardTitle>
-          <Badge tone={statusTone[post.status] ?? 'gray'}>
-            {post.status.replace('_', ' ')}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {post.autoPosted && (
+              <Badge tone="violet">
+                <Zap className="mr-1 h-3 w-3" /> Auto-posted
+              </Badge>
+            )}
+            <Badge tone={statusTone[post.status] ?? 'gray'}>
+              {post.status.replace('_', ' ')}
+            </Badge>
+          </div>
         </div>
         <p className="text-xs text-muted-foreground">
           {new Date(post.createdAt).toLocaleString()}
@@ -238,6 +264,35 @@ export function SocialPostCard({ post }: { post: SocialPostDTO }) {
                 <Send className="h-4 w-4" />
               )}
               {post.xPostedAt ? 'Posted on X' : 'Mark posted on X'}
+            </Button>
+          </div>
+        )}
+
+        {/* LinkedIn engagement metrics — only when a real LinkedIn post URN exists. */}
+        {hasLinkedInPost && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+            <div className="flex items-center gap-4 text-sm">
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                <Heart className="h-4 w-4 text-rose-400" />
+                <span className="font-medium text-foreground">{liMetrics?.likes ?? 0}</span> likes
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                <MessageCircle className="h-4 w-4 text-sky-400" />
+                <span className="font-medium text-foreground">{liMetrics?.comments ?? 0}</span> comments
+              </span>
+              {post.metricsLastSyncedAt && (
+                <span className="text-xs text-muted-foreground">
+                  Synced {new Date(post.metricsLastSyncedAt).toLocaleString()}
+                </span>
+              )}
+            </div>
+            <Button size="sm" variant="ghost" disabled={busy !== null} onClick={refreshMetrics}>
+              {busy === 'metrics' ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Refresh metrics
             </Button>
           </div>
         )}

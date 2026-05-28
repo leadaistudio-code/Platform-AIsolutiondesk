@@ -6,7 +6,9 @@ import {
 } from '@nestjs/common';
 import {
   forTenant,
+  IntegrationProvider,
   Prisma,
+  prisma,
   Product,
   type SocialPost,
 } from '@aisolutiondesk/db';
@@ -15,21 +17,26 @@ import type {
   GenerateSocialPostInput,
   MarkSocialPostedInput,
   ReviewSocialPostInput,
+  SocialMetrics,
   SocialPostDTO,
 } from '@aisolutiondesk/types';
 import type { RequestContext } from '../../common/context/request-context';
 import { ModelService } from '../../ai/model.service';
+import { LinkedInClient } from './linkedin.client';
 
 /**
- * Lightweight "topic suggester" used when the user clicks "Generate random
- * topic" — mirrors the flexible front-end of the n8n flow.
+ * Lightweight "topic suggester" used when the user clicks "Surprise me" —
+ * mirrors the flexible front-end of the n8n flow.
  */
 const TOPIC_SUGGESTER_SYSTEM = `Suggest ONE specific, engaging social media post topic for a
 B2B SaaS audience. Reply with the topic only, 6-16 words, no quotes, no preamble.`;
 
 @Injectable()
 export class SocialPostsService {
-  constructor(private readonly models: ModelService) {}
+  constructor(
+    private readonly models: ModelService,
+    private readonly linkedin: LinkedInClient,
+  ) {}
 
   private toDTO(p: SocialPost): SocialPostDTO {
     return {
@@ -43,6 +50,10 @@ export class SocialPostsService {
       linkedinPostedAt: p.linkedinPostedAt?.toISOString() ?? null,
       xPostedAt: p.xPostedAt?.toISOString() ?? null,
       autoPosted: p.autoPosted,
+      linkedinPostUrn: p.linkedinPostUrn,
+      xTweetId: p.xTweetId,
+      metrics: (p.metrics as SocialMetrics) ?? {},
+      metricsLastSyncedAt: p.metricsLastSyncedAt?.toISOString() ?? null,
       createdAt: p.createdAt.toISOString(),
     };
   }
@@ -108,7 +119,6 @@ export class SocialPostsService {
       },
     });
 
-    // 3. Meter usage so it shows in billing alongside other AI features.
     await db.usageRecord
       .createMany({
         data: [
@@ -165,10 +175,10 @@ export class SocialPostsService {
   }
 
   /**
-   * Record that the post went out on a given platform.
-   * (Actual LinkedIn / X API posting requires OAuth + per-platform app approval;
-   *  for now this is a manual "I posted it" confirmation that locks the audit
-   *  trail. Wire-up to real platform APIs is a follow-up.)
+   * "Post" the message on a platform. If the user has connected that platform
+   * (LinkedIn now; X coming when paid API supported), we call the real API and
+   * store the post URN + autoPosted=true. Otherwise we just record a manual
+   * "I posted this" timestamp.
    */
   async markPosted(
     ctx: RequestContext,
@@ -183,16 +193,92 @@ export class SocialPostsService {
     }
 
     const now = new Date();
-    const post = await db.socialPost.update({
-      where: { id },
-      data: {
-        status: 'POSTED',
-        linkedinPostedAt:
-          input.platform === 'LINKEDIN' && !existing.linkedinPostedAt ? now : undefined,
-        xPostedAt:
-          input.platform === 'X' && !existing.xPostedAt ? now : undefined,
+    const updates: Prisma.SocialPostUncheckedUpdateInput = { status: 'POSTED' };
+
+    if (input.platform === 'LINKEDIN' && !existing.linkedinPostedAt) {
+      // Try real auto-post if connected.
+      const integ = await prisma.integration.findUnique({
+        where: {
+          organizationId_provider: {
+            organizationId: ctx.organizationId,
+            provider: IntegrationProvider.LINKEDIN,
+          },
+        },
+      });
+
+      if (integ) {
+        try {
+          const creds = this.linkedin.decryptCreds(integ.credentials);
+          const { urn } = await this.linkedin.createPost(creds, existing.linkedinText);
+          updates.linkedinPostedAt = now;
+          updates.linkedinPostUrn = urn;
+          updates.autoPosted = true;
+        } catch (err) {
+          throw new BadGatewayException(
+            `LinkedIn auto-post failed: ${(err as Error).message}. ` +
+              'Reconnect LinkedIn in Settings or check the access token.',
+          );
+        }
+      } else {
+        // Not connected — manual mark-posted (audit trail only).
+        updates.linkedinPostedAt = now;
+      }
+    }
+
+    if (input.platform === 'X' && !existing.xPostedAt) {
+      // X write API requires a paid tier; currently a manual mark-posted.
+      updates.xPostedAt = now;
+    }
+
+    const post = await db.socialPost.update({ where: { id }, data: updates });
+    return this.toDTO(post);
+  }
+
+  /** Pull current likes/comments from LinkedIn for a posted post. */
+  async refreshMetrics(ctx: RequestContext, id: string): Promise<SocialPostDTO> {
+    const db = forTenant(ctx.organizationId);
+    const post = await db.socialPost.findFirst({ where: { id } });
+    if (!post) throw new NotFoundException('Post not found');
+    if (!post.linkedinPostUrn) {
+      throw new ForbiddenException(
+        'No LinkedIn post URN — metrics are only available for posts that were auto-posted via LinkedIn.',
+      );
+    }
+
+    const integ = await prisma.integration.findUnique({
+      where: {
+        organizationId_provider: {
+          organizationId: ctx.organizationId,
+          provider: IntegrationProvider.LINKEDIN,
+        },
       },
     });
-    return this.toDTO(post);
+    if (!integ) {
+      throw new ForbiddenException('LinkedIn is not connected.');
+    }
+
+    let metrics: { likes: number; comments: number };
+    try {
+      const creds = this.linkedin.decryptCreds(integ.credentials);
+      metrics = await this.linkedin.getMetrics(creds, post.linkedinPostUrn);
+    } catch (err) {
+      throw new BadGatewayException(
+        `LinkedIn metrics refresh failed: ${(err as Error).message}`,
+      );
+    }
+
+    const current = (post.metrics as SocialMetrics) ?? {};
+    const merged: SocialMetrics = {
+      ...current,
+      linkedin: { likes: metrics.likes, comments: metrics.comments },
+    };
+    const updated = await db.socialPost.update({
+      where: { id },
+      data: {
+        metrics: merged as unknown as Prisma.InputJsonValue,
+        metricsLastSyncedAt: new Date(),
+      },
+    });
+    return this.toDTO(updated);
   }
 }

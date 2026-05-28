@@ -42,6 +42,17 @@ export const MarkSocialPostedSchema = z.object({
 });
 export type MarkSocialPostedInput = z.infer<typeof MarkSocialPostedSchema>;
 
+export interface PlatformMetrics {
+  likes?: number;
+  comments?: number;
+  shares?: number;
+}
+
+export interface SocialMetrics {
+  linkedin?: PlatformMetrics;
+  x?: PlatformMetrics;
+}
+
 export interface SocialPostDTO {
   id: string;
   topic: string;
@@ -53,5 +64,36 @@ export interface SocialPostDTO {
   linkedinPostedAt: string | null;
   xPostedAt: string | null;
   autoPosted: boolean;
+  linkedinPostUrn: string | null;
+  xTweetId: string | null;
+  metrics: SocialMetrics;
+  metricsLastSyncedAt: string | null;
   createdAt: string;
+}
+
+// ── Social platform connections (LinkedIn / X) ──
+export const SOCIAL_PROVIDERS = ['LINKEDIN', 'X'] as const;
+export type SocialProvider = (typeof SOCIAL_PROVIDERS)[number];
+
+export const ConnectLinkedInSchema = z.object({
+  accessToken: z.string().trim().min(20, 'Paste your LinkedIn access token.'),
+  /** Your LinkedIn person URN, e.g. "urn:li:person:abc123". */
+  personUrn: z
+    .string()
+    .trim()
+    .regex(/^urn:li:person:/, 'Must start with "urn:li:person:"'),
+});
+export type ConnectLinkedInInput = z.infer<typeof ConnectLinkedInSchema>;
+
+export const ConnectXSchema = z.object({
+  accessToken: z.string().trim().min(20),
+});
+export type ConnectXInput = z.infer<typeof ConnectXSchema>;
+
+export interface SocialConnectionDTO {
+  provider: SocialProvider;
+  status: 'CONNECTED' | 'DISCONNECTED' | 'ERROR';
+  /** Public handle/name shown in the UI, e.g. LinkedIn person URN. */
+  displayName: string | null;
+  connectedAt: string | null;
 }

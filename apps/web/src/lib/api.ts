@@ -16,13 +16,16 @@ import type {
   LeadDetailDTO,
   OutreachDTO,
   OutreachListItemDTO,
+  ConnectLinkedInInput,
   GenerateSocialPostInput,
   MarkSocialPostedInput,
   ProposalDTO,
   ReviewSocialPostInput,
   SalesAnalyticsDTO,
   SalesInsightsDTO,
+  SocialConnectionDTO,
   SocialPostDTO,
+  SocialProvider,
   TicketDTO,
   TicketDetailDTO,
   TicketStatsDTO,
@@ -165,6 +168,19 @@ export function buildApi(getToken: TokenGetter) {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+    refreshSocialMetrics: (id: string) =>
+      request<SocialPostDTO>(`/social/posts/${id}/metrics/refresh`, {
+        method: 'POST',
+      }),
+    listSocialConnections: () =>
+      request<SocialConnectionDTO[]>('/social/connections'),
+    connectLinkedIn: (body: ConnectLinkedInInput) =>
+      request<SocialConnectionDTO>('/social/connections/linkedin', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    disconnectSocial: (provider: SocialProvider) =>
+      request<void>(`/social/connections/${provider}`, { method: 'DELETE' }),
   };
 }
 

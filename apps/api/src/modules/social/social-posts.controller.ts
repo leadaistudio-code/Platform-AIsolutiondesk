@@ -47,7 +47,7 @@ export class SocialPostsController {
     return this.posts.review(ctx, id, body);
   }
 
-  /** Record that the post went live on a given platform. */
+  /** Publish on a platform (auto-posts via LinkedIn API if connected). */
   @Post(':id/posted')
   @RequirePermission('social:write')
   markPosted(
@@ -56,5 +56,15 @@ export class SocialPostsController {
     @Body(new ZodValidationPipe(MarkSocialPostedSchema)) body: MarkSocialPostedInput,
   ) {
     return this.posts.markPosted(ctx, id, body);
+  }
+
+  /** Pull current likes / comments from LinkedIn for a posted post. */
+  @Post(':id/metrics/refresh')
+  @RequirePermission('social:read')
+  refreshMetrics(
+    @CurrentContext() ctx: RequestContext,
+    @Param('id') id: string,
+  ) {
+    return this.posts.refreshMetrics(ctx, id);
   }
 }

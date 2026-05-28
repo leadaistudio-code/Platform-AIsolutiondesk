@@ -794,6 +794,12 @@ model SocialPost {
   xPostedAt        DateTime?
   // True if a real platform API made the post; false = marked posted manually.
   autoPosted     Boolean          @default(false)
+  // Platform post identifiers, used to fetch engagement metrics later.
+  linkedinPostUrn String?
+  xTweetId        String?
+  // Latest engagement snapshot: { linkedin: {likes,comments,shares}, x: {...} }
+  metrics        Json             @default("{}")
+  metricsLastSyncedAt DateTime?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
