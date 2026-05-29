@@ -9,9 +9,9 @@ import { createRedisConnection, QUEUES, type QueueName } from './events/queues';
  * `pnpm worker:dev` (or `node dist/worker.js` in production). It can be scaled
  * independently — add more worker machines when queues get deep.
  *
- * Each queue gets one Worker. The handlers below are intentionally minimal for
- * Phase 1 — they log the job so you can SEE the pipeline working end-to-end.
- * Real processing (ingestion, agent runs, outreach) lands in later phases.
+ * Each queue gets one Worker. The scheduled-publish tick for social posts is
+ * intentionally run inside the API process (see main.ts) so a single
+ * `pnpm dev` is enough during development.
  */
 const logger = new Logger('Worker');
 
@@ -47,9 +47,10 @@ function start() {
     return worker;
   });
 
-  logger.log(`Workers started in ${env.NODE_ENV} mode for queues: ${Object.values(QUEUES).join(', ')}`);
+  logger.log(
+    `Workers started in ${env.NODE_ENV} mode for queues: ${Object.values(QUEUES).join(', ')}`,
+  );
 
-  // Graceful shutdown so in-flight jobs finish.
   const shutdown = async () => {
     logger.log('Shutting down workers…');
     await Promise.all(workers.map((w) => w.close()));

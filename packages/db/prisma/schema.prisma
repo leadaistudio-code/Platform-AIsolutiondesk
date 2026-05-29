@@ -774,6 +774,7 @@ enum SocialPostStatus {
   DRAFT
   PENDING_APPROVAL
   APPROVED
+  SCHEDULED
   REJECTED
   POSTED
 }
@@ -800,6 +801,12 @@ model SocialPost {
   // Latest engagement snapshot: { linkedin: {likes,comments,shares}, x: {...} }
   metrics        Json             @default("{}")
   metricsLastSyncedAt DateTime?
+  // Scheduling — when set, a background worker publishes at scheduledFor.
+  scheduledFor      DateTime?
+  scheduledPlatforms String[]     @default([])
+  // Attached image (uploaded by the user; stored inline for simplicity).
+  imageData      Bytes?
+  imageMimeType  String?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 

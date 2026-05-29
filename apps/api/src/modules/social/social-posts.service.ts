@@ -17,8 +17,11 @@ import type {
   GenerateSocialPostInput,
   MarkSocialPostedInput,
   ReviewSocialPostInput,
+  ScheduleSocialPostInput,
   SocialMetrics,
+  SocialPlatform,
   SocialPostDTO,
+  UpdateSocialPostInput,
 } from '@aisolutiondesk/types';
 import type { RequestContext } from '../../common/context/request-context';
 import { ModelService } from '../../ai/model.service';
@@ -54,6 +57,10 @@ export class SocialPostsService {
       xTweetId: p.xTweetId,
       metrics: (p.metrics as SocialMetrics) ?? {},
       metricsLastSyncedAt: p.metricsLastSyncedAt?.toISOString() ?? null,
+      scheduledFor: p.scheduledFor?.toISOString() ?? null,
+      scheduledPlatforms: (p.scheduledPlatforms ?? []) as SocialPlatform[],
+      hasImage: !!p.imageData,
+      imageMimeType: p.imageMimeType,
       createdAt: p.createdAt.toISOString(),
     };
   }
@@ -188,7 +195,11 @@ export class SocialPostsService {
     const db = forTenant(ctx.organizationId);
     const existing = await db.socialPost.findFirst({ where: { id } });
     if (!existing) throw new NotFoundException('Post not found');
-    if (existing.status !== 'APPROVED' && existing.status !== 'POSTED') {
+    if (
+      existing.status !== 'APPROVED' &&
+      existing.status !== 'SCHEDULED' &&
+      existing.status !== 'POSTED'
+    ) {
       throw new ForbiddenException('Approve the post before marking it posted.');
     }
 
@@ -196,7 +207,6 @@ export class SocialPostsService {
     const updates: Prisma.SocialPostUncheckedUpdateInput = { status: 'POSTED' };
 
     if (input.platform === 'LINKEDIN' && !existing.linkedinPostedAt) {
-      // Try real auto-post if connected.
       const integ = await prisma.integration.findUnique({
         where: {
           organizationId_provider: {
@@ -209,7 +219,21 @@ export class SocialPostsService {
       if (integ) {
         try {
           const creds = this.linkedin.decryptCreds(integ.credentials);
-          const { urn } = await this.linkedin.createPost(creds, existing.linkedinText);
+          // Upload image first if present, then post with it attached.
+          let imageUrn: string | undefined;
+          if (existing.imageData && existing.imageMimeType) {
+            const up = await this.linkedin.uploadImage(
+              creds,
+              Buffer.from(existing.imageData),
+              existing.imageMimeType,
+            );
+            imageUrn = up.urn;
+          }
+          const { urn } = await this.linkedin.createPost(
+            creds,
+            existing.linkedinText,
+            imageUrn,
+          );
           updates.linkedinPostedAt = now;
           updates.linkedinPostUrn = urn;
           updates.autoPosted = true;
@@ -220,18 +244,158 @@ export class SocialPostsService {
           );
         }
       } else {
-        // Not connected — manual mark-posted (audit trail only).
         updates.linkedinPostedAt = now;
       }
     }
 
     if (input.platform === 'X' && !existing.xPostedAt) {
-      // X write API requires a paid tier; currently a manual mark-posted.
       updates.xPostedAt = now;
     }
 
     const post = await db.socialPost.update({ where: { id }, data: updates });
     return this.toDTO(post);
+  }
+
+  /** Edit an AI-generated post before approval (text or topic). */
+  async update(
+    ctx: RequestContext,
+    id: string,
+    input: UpdateSocialPostInput,
+  ): Promise<SocialPostDTO> {
+    const db = forTenant(ctx.organizationId);
+    const existing = await db.socialPost.findFirst({ where: { id } });
+    if (!existing) throw new NotFoundException('Post not found');
+    if (existing.status === 'POSTED') {
+      throw new ForbiddenException('A published post cannot be edited here.');
+    }
+    const post = await db.socialPost.update({
+      where: { id },
+      data: {
+        topic: input.topic ?? undefined,
+        linkedinText: input.linkedinText ?? undefined,
+        xText: input.xText ?? undefined,
+      },
+    });
+    return this.toDTO(post);
+  }
+
+  /** Schedule a future publish — a worker picks it up at scheduledFor. */
+  async schedule(
+    ctx: RequestContext,
+    id: string,
+    input: ScheduleSocialPostInput,
+  ): Promise<SocialPostDTO> {
+    const db = forTenant(ctx.organizationId);
+    const existing = await db.socialPost.findFirst({ where: { id } });
+    if (!existing) throw new NotFoundException('Post not found');
+    if (
+      existing.status !== 'APPROVED' &&
+      existing.status !== 'SCHEDULED'
+    ) {
+      throw new ForbiddenException('Only an approved post can be scheduled.');
+    }
+    const post = await db.socialPost.update({
+      where: { id },
+      data: {
+        status: 'SCHEDULED',
+        scheduledFor: new Date(input.scheduledAt),
+        scheduledPlatforms: input.platforms,
+      },
+    });
+    return this.toDTO(post);
+  }
+
+  async cancelSchedule(ctx: RequestContext, id: string): Promise<SocialPostDTO> {
+    const db = forTenant(ctx.organizationId);
+    const existing = await db.socialPost.findFirst({ where: { id } });
+    if (!existing) throw new NotFoundException('Post not found');
+    if (existing.status !== 'SCHEDULED') {
+      throw new ForbiddenException('Only a scheduled post can be unscheduled.');
+    }
+    const post = await db.socialPost.update({
+      where: { id },
+      data: {
+        status: 'APPROVED',
+        scheduledFor: null,
+        scheduledPlatforms: [],
+      },
+    });
+    return this.toDTO(post);
+  }
+
+  /** Store an uploaded image inline on the post (used by /:id/image POST). */
+  async attachImage(
+    ctx: RequestContext,
+    id: string,
+    bytes: Buffer,
+    mimeType: string,
+  ): Promise<SocialPostDTO> {
+    const db = forTenant(ctx.organizationId);
+    const existing = await db.socialPost.findFirst({ where: { id } });
+    if (!existing) throw new NotFoundException('Post not found');
+    if (existing.status === 'POSTED') {
+      throw new ForbiddenException('Cannot change a posted message.');
+    }
+    if (bytes.length > 5 * 1024 * 1024) {
+      throw new ForbiddenException('Image must be 5 MB or smaller.');
+    }
+    const post = await db.socialPost.update({
+      where: { id },
+      data: { imageData: bytes, imageMimeType: mimeType },
+    });
+    return this.toDTO(post);
+  }
+
+  async removeImage(ctx: RequestContext, id: string): Promise<SocialPostDTO> {
+    const db = forTenant(ctx.organizationId);
+    const post = await db.socialPost.update({
+      where: { id },
+      data: { imageData: null, imageMimeType: null },
+    });
+    return this.toDTO(post);
+  }
+
+  /** Return raw image bytes for serving via the GET /image endpoint. */
+  async getImageBytes(
+    ctx: RequestContext,
+    id: string,
+  ): Promise<{ bytes: Buffer; mimeType: string } | null> {
+    const db = forTenant(ctx.organizationId);
+    const post = await db.socialPost.findFirst({ where: { id } });
+    if (!post || !post.imageData || !post.imageMimeType) return null;
+    return { bytes: Buffer.from(post.imageData), mimeType: post.imageMimeType };
+  }
+
+  /**
+   * Worker entry-point: find SCHEDULED posts whose time has come and publish
+   * them across their configured platforms. Called periodically (every minute)
+   * by the background worker.
+   */
+  async publishDueScheduled(): Promise<void> {
+    const due = await prisma.socialPost.findMany({
+      where: { status: 'SCHEDULED', scheduledFor: { lte: new Date() } },
+      take: 25,
+    });
+    for (const post of due) {
+      const ctx: RequestContext = {
+        userId: null,
+        clerkUserId: null,
+        organizationId: post.organizationId,
+        clerkOrgId: '',
+        role: 'OWNER' as RequestContext['role'],
+        isApiKey: false,
+        scopes: [],
+      };
+      for (const platform of post.scheduledPlatforms) {
+        try {
+          await this.markPosted(ctx, post.id, {
+            platform: platform as SocialPlatform,
+          });
+        } catch {
+          // Leave SCHEDULED so it retries on next tick; admin can inspect.
+        }
+      }
+    }
   }
 
   /** Pull current likes/comments from LinkedIn for a posted post. */

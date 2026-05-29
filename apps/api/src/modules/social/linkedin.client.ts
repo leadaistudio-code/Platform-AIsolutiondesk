@@ -34,12 +34,71 @@ export class LinkedInClient {
   }
 
   /**
-   * Publish a text-only post on the authenticated user's profile.
+   * Upload an image to LinkedIn's asset registry. Returns the image URN
+   * which can then be referenced as media in a post body.
+   */
+  async uploadImage(
+    creds: LinkedInCreds,
+    bytes: Buffer,
+    mimeType: string,
+  ): Promise<{ urn: string }> {
+    // 1. Initialize upload — LinkedIn returns an uploadUrl and the image URN.
+    const initRes = await fetch(
+      'https://api.linkedin.com/rest/images?action=initializeUpload',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${creds.accessToken}`,
+          'Content-Type': 'application/json',
+          'LinkedIn-Version': '202604',
+          'X-Restli-Protocol-Version': '2.0.0',
+        },
+        body: JSON.stringify({
+          initializeUploadRequest: { owner: creds.personUrn },
+        }),
+      },
+    );
+    if (!initRes.ok) {
+      throw new Error(
+        `LinkedIn image init failed (${initRes.status}): ${await initRes.text()}`,
+      );
+    }
+    const init = (await initRes.json()) as {
+      value?: { uploadUrl?: string; image?: string };
+    };
+    const uploadUrl = init.value?.uploadUrl;
+    const urn = init.value?.image;
+    if (!uploadUrl || !urn) throw new Error('LinkedIn image init: missing uploadUrl or image URN');
+
+    // 2. PUT the raw bytes to the upload URL.
+    const upRes = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${creds.accessToken}`,
+        'Content-Type': mimeType,
+      },
+      body: bytes,
+    });
+    if (!upRes.ok) {
+      throw new Error(
+        `LinkedIn image upload failed (${upRes.status}): ${await upRes.text()}`,
+      );
+    }
+    return { urn };
+  }
+
+  /**
+   * Publish a text post on the authenticated user's profile, optionally with
+   * an attached image (URN obtained from uploadImage).
    * Uses LinkedIn's versioned REST Posts API (the legacy /v2/ugcPosts endpoint
    * rejects the modern `urn:li:person:<sub>` format from /v2/userinfo).
    */
-  async createPost(creds: LinkedInCreds, text: string): Promise<{ urn: string }> {
-    const body = {
+  async createPost(
+    creds: LinkedInCreds,
+    text: string,
+    imageUrn?: string,
+  ): Promise<{ urn: string }> {
+    const body: Record<string, unknown> = {
       author: creds.personUrn,
       commentary: this.escapeCommentary(text),
       visibility: 'PUBLIC',
@@ -51,6 +110,9 @@ export class LinkedInClient {
       lifecycleState: 'PUBLISHED',
       isReshareDisabledByAuthor: false,
     };
+    if (imageUrn) {
+      body.content = { media: { id: imageUrn } };
+    }
 
     const res = await fetch('https://api.linkedin.com/rest/posts', {
       method: 'POST',

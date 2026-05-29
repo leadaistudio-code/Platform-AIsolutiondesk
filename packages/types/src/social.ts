@@ -9,6 +9,7 @@ export const SOCIAL_POST_STATUSES = [
   'DRAFT',
   'PENDING_APPROVAL',
   'APPROVED',
+  'SCHEDULED',
   'REJECTED',
   'POSTED',
 ] as const;
@@ -42,6 +43,37 @@ export const MarkSocialPostedSchema = z.object({
 });
 export type MarkSocialPostedInput = z.infer<typeof MarkSocialPostedSchema>;
 
+/** Edit the AI-generated drafts before approving. */
+export const UpdateSocialPostSchema = z
+  .object({
+    topic: z.string().trim().min(3).max(500).optional(),
+    linkedinText: z.string().trim().min(1).max(3000).optional(),
+    xText: z.string().trim().min(1).max(280).optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, { message: 'Nothing to update.' });
+export type UpdateSocialPostInput = z.infer<typeof UpdateSocialPostSchema>;
+
+/** Attach an image (sent as base64 to avoid multipart parsing). */
+export const AttachImageSchema = z.object({
+  mimeType: z
+    .string()
+    .regex(/^image\/(png|jpeg|jpg|gif|webp)$/i, 'Unsupported image type.'),
+  base64: z.string().min(1).max(8_000_000, 'Image is too large (max ~5 MB).'),
+});
+export type AttachImageInput = z.infer<typeof AttachImageSchema>;
+
+/** Schedule a future publish. */
+export const ScheduleSocialPostSchema = z.object({
+  scheduledAt: z
+    .string()
+    .datetime({ message: 'Must be an ISO datetime.' })
+    .refine((s) => new Date(s).getTime() > Date.now() + 30_000, {
+      message: 'Scheduled time must be at least 30 seconds in the future.',
+    }),
+  platforms: z.array(z.enum(SOCIAL_PLATFORMS)).min(1),
+});
+export type ScheduleSocialPostInput = z.infer<typeof ScheduleSocialPostSchema>;
+
 export interface PlatformMetrics {
   likes?: number;
   comments?: number;
@@ -68,6 +100,10 @@ export interface SocialPostDTO {
   xTweetId: string | null;
   metrics: SocialMetrics;
   metricsLastSyncedAt: string | null;
+  scheduledFor: string | null;
+  scheduledPlatforms: SocialPlatform[];
+  hasImage: boolean;
+  imageMimeType: string | null;
   createdAt: string;
 }
 

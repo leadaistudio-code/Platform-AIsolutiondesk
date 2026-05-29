@@ -1,12 +1,29 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Res,
+} from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import type { Response } from 'express';
+import {
+  AttachImageSchema,
   GenerateSocialPostSchema,
   MarkSocialPostedSchema,
   ReviewSocialPostSchema,
+  ScheduleSocialPostSchema,
+  UpdateSocialPostSchema,
+  type AttachImageInput,
   type GenerateSocialPostInput,
   type MarkSocialPostedInput,
   type ReviewSocialPostInput,
+  type ScheduleSocialPostInput,
+  type UpdateSocialPostInput,
 } from '@aisolutiondesk/types';
 import { CurrentContext } from '../../common/decorators/current-context.decorator';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
@@ -36,6 +53,17 @@ export class SocialPostsController {
     return this.posts.generate(ctx, body);
   }
 
+  /** Edit the AI-generated drafts (text/topic) before approval. */
+  @Patch(':id')
+  @RequirePermission('social:write')
+  update(
+    @CurrentContext() ctx: RequestContext,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(UpdateSocialPostSchema)) body: UpdateSocialPostInput,
+  ) {
+    return this.posts.update(ctx, id, body);
+  }
+
   /** Approve or reject a pending post. */
   @Post(':id/review')
   @RequirePermission('social:approve')
@@ -45,6 +73,56 @@ export class SocialPostsController {
     @Body(new ZodValidationPipe(ReviewSocialPostSchema)) body: ReviewSocialPostInput,
   ) {
     return this.posts.review(ctx, id, body);
+  }
+
+  /** Schedule a future publish — the worker fires at scheduledAt. */
+  @Post(':id/schedule')
+  @RequirePermission('social:approve')
+  schedule(
+    @CurrentContext() ctx: RequestContext,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(ScheduleSocialPostSchema)) body: ScheduleSocialPostInput,
+  ) {
+    return this.posts.schedule(ctx, id, body);
+  }
+
+  @Post(':id/cancel-schedule')
+  @RequirePermission('social:approve')
+  cancelSchedule(@CurrentContext() ctx: RequestContext, @Param('id') id: string) {
+    return this.posts.cancelSchedule(ctx, id);
+  }
+
+  /** Attach (or replace) an image, sent as base64 to keep things simple. */
+  @Post(':id/image')
+  @RequirePermission('social:write')
+  attachImage(
+    @CurrentContext() ctx: RequestContext,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(AttachImageSchema)) body: AttachImageInput,
+  ) {
+    const bytes = Buffer.from(body.base64, 'base64');
+    return this.posts.attachImage(ctx, id, bytes, body.mimeType);
+  }
+
+  @Delete(':id/image')
+  @RequirePermission('social:write')
+  removeImage(@CurrentContext() ctx: RequestContext, @Param('id') id: string) {
+    return this.posts.removeImage(ctx, id);
+  }
+
+  /** Serve the attached image bytes so the UI can preview it. */
+  @Get(':id/image')
+  @RequirePermission('social:read')
+  async getImage(
+    @CurrentContext() ctx: RequestContext,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const img = await this.posts.getImageBytes(ctx, id);
+    if (!img) throw new NotFoundException('No image attached');
+    res.setHeader('Content-Type', img.mimeType);
+    res.setHeader('Cache-Control', 'private, max-age=60');
+    res.send(img.bytes);
   }
 
   /** Publish on a platform (auto-posts via LinkedIn API if connected). */

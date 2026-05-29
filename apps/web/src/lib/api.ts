@@ -16,6 +16,7 @@ import type {
   LeadDetailDTO,
   OutreachDTO,
   OutreachListItemDTO,
+  AttachImageInput,
   ConnectLinkedInInput,
   GenerateSocialPostInput,
   MarkSocialPostedInput,
@@ -23,10 +24,12 @@ import type {
   ReviewSocialPostInput,
   SalesAnalyticsDTO,
   SalesInsightsDTO,
+  ScheduleSocialPostInput,
   SocialConnectionDTO,
   SocialPostDTO,
   SocialProvider,
   TicketDTO,
+  UpdateSocialPostInput,
   TicketDetailDTO,
   TicketStatsDTO,
   UpdateCampaignInput,
@@ -181,6 +184,40 @@ export function buildApi(getToken: TokenGetter) {
       }),
     disconnectSocial: (provider: SocialProvider) =>
       request<void>(`/social/connections/${provider}`, { method: 'DELETE' }),
+
+    // Edit / schedule / image
+    updateSocialPost: (id: string, body: UpdateSocialPostInput) =>
+      request<SocialPostDTO>(`/social/posts/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    scheduleSocialPost: (id: string, body: ScheduleSocialPostInput) =>
+      request<SocialPostDTO>(`/social/posts/${id}/schedule`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    cancelScheduleSocialPost: (id: string) =>
+      request<SocialPostDTO>(`/social/posts/${id}/cancel-schedule`, {
+        method: 'POST',
+      }),
+    attachSocialImage: (id: string, body: AttachImageInput) =>
+      request<SocialPostDTO>(`/social/posts/${id}/image`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    removeSocialImage: (id: string) =>
+      request<SocialPostDTO>(`/social/posts/${id}/image`, { method: 'DELETE' }),
+    /** Fetch the image bytes with auth and return a blob URL for <img src>. */
+    socialImageBlobUrl: async (id: string): Promise<string> => {
+      const token = await getToken().catch(() => null);
+      const res = await fetch(`${API_URL}/social/posts/${id}/image`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        cache: 'no-store',
+      });
+      if (!res.ok) throw new Error(`Image fetch ${res.status}`);
+      const blob = await res.blob();
+      return URL.createObjectURL(blob);
+    },
   };
 }
 

@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { env } from '@aisolutiondesk/config';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { SocialPostsService } from './modules/social/social-posts.service';
 
 /**
  * The application's entry point. Running `pnpm dev` calls this file.
@@ -41,6 +42,28 @@ async function bootstrap() {
   const port = process.env.PORT ? Number(process.env.PORT) : env.API_PORT;
   await app.listen(port, '0.0.0.0');
   Logger.log(`API ready on port ${port}`, 'Bootstrap');
+
+  // Scheduled-publish tick: every minute, check for due social posts and
+  // publish them. Lives in the API process so a single `pnpm dev` is enough
+  // (the standalone worker doesn't need to run for scheduling to work).
+  const social = app.get(SocialPostsService);
+  const tickMs = 60_000;
+  const tick = async () => {
+    try {
+      await social.publishDueScheduled();
+    } catch (err) {
+      Logger.error(
+        `Scheduled-publish tick failed: ${(err as Error).message}`,
+        'SocialScheduler',
+      );
+    }
+  };
+  setInterval(tick, tickMs);
+  void tick();
+  Logger.log(
+    `Scheduled-publish tick running every ${tickMs / 1000}s`,
+    'SocialScheduler',
+  );
 }
 
 bootstrap();
