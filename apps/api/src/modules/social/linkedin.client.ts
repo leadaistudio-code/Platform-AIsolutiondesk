@@ -47,7 +47,9 @@ export class LinkedInClient {
       headers: {
         Authorization: `Bearer ${creds.accessToken}`,
         'Content-Type': 'application/json',
-        'LinkedIn-Version': '202405',
+        // LinkedIn deprecates versions older than ~12 months — bump this
+        // (YYYYMM) if a "NONEXISTENT_VERSION" error appears later.
+        'LinkedIn-Version': '202504',
         'X-Restli-Protocol-Version': '2.0.0',
       },
       body: JSON.stringify(body),
