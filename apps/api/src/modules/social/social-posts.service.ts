@@ -19,6 +19,7 @@ import type {
   ReviewSocialPostInput,
   ScheduleSocialPostInput,
   SocialMetrics,
+  SocialPersona,
   SocialPlatform,
   SocialPostDTO,
   UpdateSocialPostInput,
@@ -26,6 +27,7 @@ import type {
 import type { RequestContext } from '../../common/context/request-context';
 import { ModelService } from '../../ai/model.service';
 import { LinkedInClient } from './linkedin.client';
+import { SocialPersonaService } from './social-persona.service';
 
 /**
  * Lightweight "topic suggester" used when the user clicks "Surprise me" —
@@ -39,6 +41,7 @@ export class SocialPostsService {
   constructor(
     private readonly models: ModelService,
     private readonly linkedin: LinkedInClient,
+    private readonly personas: SocialPersonaService,
   ) {}
 
   private toDTO(p: SocialPost): SocialPostDTO {
@@ -100,13 +103,16 @@ export class SocialPostsService {
     }
     if (!topic) topic = 'A productivity tip for busy founders';
 
-    // 2. Generate the two posts.
+    // 2. Generate the two posts (using the brand persona if one is configured).
+    const persona: SocialPersona = await this.personas
+      .get(ctx)
+      .catch(() => ({}));
     const agent = createSocialPostWriterAgent((req) => this.models.complete(req));
     let outcome;
     try {
       outcome = await runAgent(
         agent,
-        { topic, model: Models.fast() },
+        { topic, persona, model: Models.fast() },
         { organizationId: ctx.organizationId },
       );
     } catch (err) {

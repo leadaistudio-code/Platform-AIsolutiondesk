@@ -22,6 +22,7 @@ import {
   Share2,
   PenSquare,
   CheckSquare,
+  Palette,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -44,6 +45,18 @@ export interface ProductNav {
  * in the product brief.
  */
 export const PRODUCTS: ProductNav[] = [
+  {
+    key: 'social-media',
+    name: 'AI Social Media',
+    tagline: 'Auto-post + approvals',
+    items: [
+      { label: 'Feed', href: '/social', icon: Share2 },
+      { label: 'Generate Post', href: '/social/new', icon: PenSquare },
+      { label: 'Approvals', href: '/social/approvals', icon: CheckSquare },
+      { label: 'Brand Persona', href: '/social/persona', icon: Palette },
+      { label: 'Connections', href: '/social/connections', icon: Plug },
+    ],
+  },
   {
     key: 'service-desk',
     name: 'AI Service Desk',
@@ -85,17 +98,6 @@ export const PRODUCTS: ProductNav[] = [
       { label: 'Proposal Generator', href: '/sales/proposals', icon: FileSignature },
       { label: 'Analytics', href: '/sales/analytics', icon: BarChart3 },
       { label: 'AI Insights', href: '/sales/insights', icon: Lightbulb },
-    ],
-  },
-  {
-    key: 'social-media',
-    name: 'AI Social Media',
-    tagline: 'Auto-post + approvals',
-    items: [
-      { label: 'Feed', href: '/social', icon: Share2 },
-      { label: 'Generate Post', href: '/social/new', icon: PenSquare },
-      { label: 'Approvals', href: '/social/approvals', icon: CheckSquare },
-      { label: 'Connections', href: '/social/connections', icon: Plug },
     ],
   },
 ];

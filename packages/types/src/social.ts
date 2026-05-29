@@ -133,3 +133,27 @@ export interface SocialConnectionDTO {
   displayName: string | null;
   connectedAt: string | null;
 }
+
+// ── Brand voice / AI persona ──
+/**
+ * Optional brand voice the AI uses when generating posts. Stored as JSON
+ * inside Organization.settings — one persona per org.
+ */
+export interface SocialPersona {
+  name?: string;
+  description?: string;
+  tone?: string;
+  audience?: string;
+  doNotMention?: string;
+  sampleVoice?: string;
+}
+
+export const UpdateSocialPersonaSchema = z.object({
+  name: z.string().trim().max(120).optional(),
+  description: z.string().trim().max(1000).optional(),
+  tone: z.string().trim().max(200).optional(),
+  audience: z.string().trim().max(200).optional(),
+  doNotMention: z.string().trim().max(500).optional(),
+  sampleVoice: z.string().trim().max(2000).optional(),
+});
+export type UpdateSocialPersonaInput = z.infer<typeof UpdateSocialPersonaSchema>;

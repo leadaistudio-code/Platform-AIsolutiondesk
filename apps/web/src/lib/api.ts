@@ -26,14 +26,16 @@ import type {
   SalesInsightsDTO,
   ScheduleSocialPostInput,
   SocialConnectionDTO,
+  SocialPersona,
   SocialPostDTO,
   SocialProvider,
   TicketDTO,
-  UpdateSocialPostInput,
   TicketDetailDTO,
   TicketStatsDTO,
   UpdateCampaignInput,
   UpdateLeadInput,
+  UpdateSocialPersonaInput,
+  UpdateSocialPostInput,
   UpdateTicketInput,
 } from '@aisolutiondesk/types';
 
@@ -207,6 +209,14 @@ export function buildApi(getToken: TokenGetter) {
       }),
     removeSocialImage: (id: string) =>
       request<SocialPostDTO>(`/social/posts/${id}/image`, { method: 'DELETE' }),
+    // Brand persona (one per org)
+    getSocialPersona: () => request<SocialPersona>('/social/persona'),
+    updateSocialPersona: (body: UpdateSocialPersonaInput) =>
+      request<SocialPersona>('/social/persona', {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      }),
+
     /** Fetch the image bytes with auth and return a blob URL for <img src>. */
     socialImageBlobUrl: async (id: string): Promise<string> => {
       const token = await getToken().catch(() => null);
