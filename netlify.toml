@@ -9,6 +9,12 @@
 [build.environment]
   NODE_VERSION = "20"
   # Netlify auto-detects pnpm from pnpm-lock.yaml via corepack.
+  #
+  # Exclude Clerk's PUBLISHABLE key from the secrets scanner — it's a
+  # NEXT_PUBLIC_* var that Clerk *intends* to be embedded in client-side
+  # JS so the browser SDK can use it; flagging it is a false positive.
+  # CLERK_SECRET_KEY (the actual secret) is NOT excluded and stays guarded.
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,NEXT_PUBLIC_API_URL"
 
 # Adds Next.js 15 support (SSR, middleware, image optimization) on Netlify.
 [[plugins]]
