@@ -24,6 +24,16 @@ export class LinkedInClient {
   }
 
   /**
+   * LinkedIn's /rest/posts `commentary` field requires these characters to be
+   * escaped with a leading backslash — otherwise the post silently truncates
+   * at the first unescaped one (e.g. an opening parenthesis or hashtag).
+   * Per https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api
+   */
+  private escapeCommentary(text: string): string {
+    return text.replace(/([\\<>#~_*[\]()@!])/g, '\\$1');
+  }
+
+  /**
    * Publish a text-only post on the authenticated user's profile.
    * Uses LinkedIn's versioned REST Posts API (the legacy /v2/ugcPosts endpoint
    * rejects the modern `urn:li:person:<sub>` format from /v2/userinfo).
@@ -31,7 +41,7 @@ export class LinkedInClient {
   async createPost(creds: LinkedInCreds, text: string): Promise<{ urn: string }> {
     const body = {
       author: creds.personUrn,
-      commentary: text,
+      commentary: this.escapeCommentary(text),
       visibility: 'PUBLIC',
       distribution: {
         feedDistribution: 'MAIN_FEED',
@@ -49,7 +59,7 @@ export class LinkedInClient {
         'Content-Type': 'application/json',
         // LinkedIn deprecates versions older than ~12 months — bump this
         // (YYYYMM) if a "NONEXISTENT_VERSION" error appears later.
-        'LinkedIn-Version': '202504',
+        'LinkedIn-Version': '202604',
         'X-Restli-Protocol-Version': '2.0.0',
       },
       body: JSON.stringify(body),
@@ -57,7 +67,15 @@ export class LinkedInClient {
 
     if (!res.ok) {
       const detail = await res.text();
-      throw new Error(`LinkedIn post failed (${res.status}): ${detail}`);
+      // LinkedIn often returns empty bodies on 403 — surface the diagnostic
+      // headers (x-li-error-id, x-restli-error-response-type) so the cause
+      // can actually be looked up in LinkedIn's support tools.
+      const liError = res.headers.get('x-li-error-id') ?? 'none';
+      const liErrType = res.headers.get('x-restli-error-response-type') ?? 'none';
+      throw new Error(
+        `LinkedIn post failed (${res.status}): ${detail || '(empty body)'} ` +
+          `[errorId=${liError}, type=${liErrType}]`,
+      );
     }
 
     // The post URN is returned in a header; fall back to the body just in case.
