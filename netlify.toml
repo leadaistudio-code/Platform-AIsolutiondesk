@@ -11,7 +11,7 @@
   # Bake the API URL into the client bundle at build time. NEXT_PUBLIC_* vars
   # are inlined into JS by Next.js during `next build`, so this MUST be present
   # in the build environment (not just the runtime environment).
-  NEXT_PUBLIC_API_URL = "https://platform-aisolutiondesk-production.up.railway.app"
+  NEXT_PUBLIC_API_URL = "https://api.aisolutiondesk.com"
   # Netlify auto-detects pnpm from pnpm-lock.yaml via corepack.
   #
   # Exclude Clerk's PUBLISHABLE key from the secrets scanner — it's a
