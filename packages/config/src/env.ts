@@ -72,6 +72,22 @@ const envSchema = z.object({
     .optional()
     .transform((v) => v === 'true'),
   DEV_ORG_SLUG: z.string().optional(),
+
+  // Comma-separated emails of platform admins (you, the SaaS operator).
+  // These users see every customer org and can toggle which products each
+  // org has enabled (gating what the org's members see).
+  // Example: PLATFORM_ADMIN_EMAILS=you@example.com,cofounder@example.com
+  PLATFORM_ADMIN_EMAILS: z
+    .string()
+    .optional()
+    .transform((v) =>
+      v
+        ? v
+            .split(',')
+            .map((s) => s.trim().toLowerCase())
+            .filter(Boolean)
+        : [],
+    ),
 });
 
 export type Env = z.infer<typeof envSchema>;

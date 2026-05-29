@@ -391,6 +391,7 @@ export class SocialPostsService {
         role: 'OWNER' as RequestContext['role'],
         isApiKey: false,
         scopes: [],
+        isPlatformAdmin: true,
       };
       for (const platform of post.scheduledPlatforms) {
         try {

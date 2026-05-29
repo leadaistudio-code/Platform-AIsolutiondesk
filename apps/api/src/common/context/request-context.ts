@@ -19,6 +19,12 @@ export interface RequestContext {
   isApiKey: boolean;
   /** Permission scopes (from API key) when isApiKey is true. */
   scopes: string[];
+  /**
+   * True when the user's email is listed in PLATFORM_ADMIN_EMAILS. Platform
+   * admins (the SaaS operator) bypass per-org product entitlement gating and
+   * can access /admin routes that manage every customer organization.
+   */
+  isPlatformAdmin: boolean;
 }
 
 /** Express request augmented with our context. */

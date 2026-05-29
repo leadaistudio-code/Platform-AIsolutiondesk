@@ -7,10 +7,16 @@ import {
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { prisma, Role, MembershipStatus } from '@aisolutiondesk/db';
+import { env } from '@aisolutiondesk/config';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import type { RequestContext } from '../context/request-context';
 import type { RequestAuth } from './clerk-auth.guard';
 import { ClerkService } from '../clerk/clerk.service';
+
+function isPlatformAdminEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return env.PLATFORM_ADMIN_EMAILS.includes(email.toLowerCase());
+}
 
 /**
  * Tenant resolver. Takes the `auth` packet that ClerkAuthGuard attached and
@@ -79,6 +85,9 @@ export class TenantGuard implements CanActivate {
       role: Role.OWNER,
       isApiKey: false,
       scopes: [],
+      // Dev-bypass mode is treated as a platform admin so you can use
+      // /admin pages locally without configuring real Clerk emails.
+      isPlatformAdmin: true,
     };
   }
 
@@ -148,6 +157,7 @@ export class TenantGuard implements CanActivate {
       role: membership.role,
       isApiKey: false,
       scopes: [],
+      isPlatformAdmin: isPlatformAdminEmail(user.email),
     };
   }
 
@@ -168,6 +178,7 @@ export class TenantGuard implements CanActivate {
       role: Role.AGENT,
       isApiKey: true,
       scopes: auth.scopes,
+      isPlatformAdmin: false,
     };
   }
 }

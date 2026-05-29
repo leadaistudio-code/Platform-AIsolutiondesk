@@ -11,6 +11,8 @@ import { TicketsModule } from './modules/tickets/tickets.module';
 import { AssistantModule } from './modules/assistant/assistant.module';
 import { SalesModule } from './modules/sales/sales.module';
 import { SocialModule } from './modules/social/social.module';
+import { MeModule } from './modules/me/me.module';
+import { AdminModule } from './modules/admin/admin.module';
 import { AiModule } from './ai/ai.module';
 import { EventsModule } from './events/events.module';
 
@@ -36,6 +38,8 @@ import { EventsModule } from './events/events.module';
     AssistantModule,
     SalesModule,
     SocialModule,
+    MeModule,
+    AdminModule,
   ],
   providers: [
     ClerkService,

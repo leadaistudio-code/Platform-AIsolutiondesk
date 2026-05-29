@@ -16,11 +16,14 @@ import type {
   LeadDetailDTO,
   OutreachDTO,
   OutreachListItemDTO,
+  AdminOrgDTO,
   AttachImageInput,
   ConnectLinkedInInput,
   GenerateSocialPostInput,
   MarkSocialPostedInput,
+  MeDTO,
   ProposalDTO,
+  UpdateOrgProductsInput,
   ReviewSocialPostInput,
   SalesAnalyticsDTO,
   SalesInsightsDTO,
@@ -209,6 +212,19 @@ export function buildApi(getToken: TokenGetter) {
       }),
     removeSocialImage: (id: string) =>
       request<SocialPostDTO>(`/social/posts/${id}/image`, { method: 'DELETE' }),
+    // Current user + org + entitlements
+    getMe: () => request<MeDTO>('/me'),
+
+    // Platform admin — list orgs & toggle their products
+    listAdminOrgs: () => request<AdminOrgDTO[]>('/admin/organizations'),
+    getAdminOrg: (id: string) =>
+      request<AdminOrgDTO>(`/admin/organizations/${id}`),
+    updateAdminOrgProducts: (id: string, body: UpdateOrgProductsInput) =>
+      request<AdminOrgDTO>(`/admin/organizations/${id}/products`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+
     // Brand persona (one per org)
     getSocialPersona: () => request<SocialPersona>('/social/persona'),
     updateSocialPersona: (body: UpdateSocialPersonaInput) =>

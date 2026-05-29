@@ -10,21 +10,39 @@ import {
   ChevronRight,
   Settings as SettingsIcon,
   LogOut,
+  Shield,
+  Building2,
 } from 'lucide-react';
 import { SignOutButton } from '@clerk/nextjs';
+import type { ProductKey } from '@aisolutiondesk/types';
 import { cn } from '@/lib/utils';
 import { PRODUCTS, type NavItem, type ProductNav } from './nav-config';
 import { clerkEnabled } from '@/components/providers/app-providers';
 
 const COLLAPSE_STORAGE_KEY = 'aisol-nav-collapsed-v1';
 
+/** Map nav section key -> backend Product enum key for entitlement gating. */
+const NAV_KEY_TO_PRODUCT: Record<ProductNav['key'], ProductKey> = {
+  'service-desk': 'SERVICE_DESK',
+  'employee-assistant': 'EMPLOYEE_ASSISTANT',
+  'sales-agent': 'SALES_AGENT',
+  'social-media': 'SOCIAL_MEDIA',
+};
+
 /**
- * The left navigation rail. Adds three quality-of-life features:
- *  - search box that filters every product's items by label as you type;
- *  - per-product collapsible sections (state persisted in localStorage);
- *  - a pinned footer with Settings + Sign-out.
+ * The left navigation rail. Hides products the org isn't entitled to (unless
+ * the user is a platform admin, who sees every product + an Admin section).
+ *
+ * Quality-of-life: search box, collapsible product sections (persisted in
+ * localStorage), pinned Settings + Sign-out footer.
  */
-export function Sidebar() {
+export function Sidebar({
+  enabledProducts,
+  isPlatformAdmin,
+}: {
+  enabledProducts: ProductKey[];
+  isPlatformAdmin: boolean;
+}) {
   const pathname = usePathname();
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -50,16 +68,22 @@ export function Sidebar() {
     setCollapsed((c) => ({ ...c, [key]: !c[key] }));
   }
 
-  // Pre-compute filtered items per product so empty sections drop out while searching.
+  // Pre-compute filtered items per product so empty sections drop out while
+  // searching, and hide products the org isn't entitled to (admins see all).
   const q = query.trim().toLowerCase();
   const sections = useMemo(() => {
-    return PRODUCTS.map((p) => ({
-      product: p,
-      items: q
-        ? p.items.filter((i) => i.label.toLowerCase().includes(q))
-        : p.items,
-    })).filter((s) => s.items.length > 0);
-  }, [q]);
+    const allowed = new Set<ProductKey>(enabledProducts);
+    return PRODUCTS.filter(
+      (p) => isPlatformAdmin || allowed.has(NAV_KEY_TO_PRODUCT[p.key]),
+    )
+      .map((p) => ({
+        product: p,
+        items: q
+          ? p.items.filter((i) => i.label.toLowerCase().includes(q))
+          : p.items,
+      }))
+      .filter((s) => s.items.length > 0);
+  }, [q, enabledProducts, isPlatformAdmin]);
 
   return (
     <aside className="hidden h-screen w-72 shrink-0 flex-col gap-4 overflow-hidden border-r border-border bg-card/40 p-4 lg:flex">
@@ -87,9 +111,11 @@ export function Sidebar() {
 
       {/* Scrollable middle area */}
       <nav className="flex-1 overflow-y-auto pr-1">
-        {sections.length === 0 ? (
+        {sections.length === 0 && !isPlatformAdmin ? (
           <p className="px-2 text-xs text-muted-foreground">
-            No menu items match &quot;{q}&quot;.
+            {q
+              ? `No menu items match "${q}".`
+              : 'No products enabled yet. Contact your platform admin.'}
           </p>
         ) : (
           <div className="flex flex-col gap-5">
@@ -99,12 +125,33 @@ export function Sidebar() {
                 product={product}
                 items={items}
                 pathname={pathname}
-                // While searching, force-expand so hits are visible.
                 collapsed={q ? false : !!collapsed[product.key]}
                 onToggle={() => toggle(product.key)}
                 showToggle={!q}
               />
             ))}
+
+            {/* Admin-only section */}
+            {isPlatformAdmin && (
+              <div>
+                <div className="flex items-center gap-1.5 px-2 text-[11px] font-semibold uppercase tracking-wider text-amber-300/80">
+                  <Shield className="h-3 w-3" /> Platform Admin
+                </div>
+                <div className="mt-2 flex flex-col gap-0.5">
+                  <Link
+                    href="/admin/orgs"
+                    className={cn(
+                      'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+                      pathname.startsWith('/admin/orgs')
+                        ? 'bg-primary/15 text-foreground'
+                        : 'text-muted-foreground hover:bg-white/5 hover:text-foreground',
+                    )}
+                  >
+                    <Building2 className="h-4 w-4" /> Customer Orgs
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </nav>
