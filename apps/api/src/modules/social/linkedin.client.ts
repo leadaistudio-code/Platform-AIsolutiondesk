@@ -23,27 +23,31 @@ export class LinkedInClient {
     return decryptJson<LinkedInCreds>(blob);
   }
 
-  /** Publish a text-only post on the authenticated user's profile. */
+  /**
+   * Publish a text-only post on the authenticated user's profile.
+   * Uses LinkedIn's versioned REST Posts API (the legacy /v2/ugcPosts endpoint
+   * rejects the modern `urn:li:person:<sub>` format from /v2/userinfo).
+   */
   async createPost(creds: LinkedInCreds, text: string): Promise<{ urn: string }> {
     const body = {
       author: creds.personUrn,
+      commentary: text,
+      visibility: 'PUBLIC',
+      distribution: {
+        feedDistribution: 'MAIN_FEED',
+        targetEntities: [],
+        thirdPartyDistributionChannels: [],
+      },
       lifecycleState: 'PUBLISHED',
-      specificContent: {
-        'com.linkedin.ugc.ShareContent': {
-          shareCommentary: { text },
-          shareMediaCategory: 'NONE',
-        },
-      },
-      visibility: {
-        'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC',
-      },
+      isReshareDisabledByAuthor: false,
     };
 
-    const res = await fetch('https://api.linkedin.com/v2/ugcPosts', {
+    const res = await fetch('https://api.linkedin.com/rest/posts', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${creds.accessToken}`,
         'Content-Type': 'application/json',
+        'LinkedIn-Version': '202405',
         'X-Restli-Protocol-Version': '2.0.0',
       },
       body: JSON.stringify(body),
