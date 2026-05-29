@@ -1,0 +1,15 @@
+# Netlify config for the AISOLUTIONDESK web app (apps/web) in this pnpm monorepo.
+# Deployed at platform.aisolutiondesk.com. The build runs from the repo root so
+# the shared workspace package (@aisolutiondesk/types) is built first.
+
+[build]
+  command = "pnpm --filter @aisolutiondesk/web... build"
+  publish = "apps/web/.next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  # Netlify auto-detects pnpm from pnpm-lock.yaml via corepack.
+
+# Adds Next.js 15 support (SSR, middleware, image optimization) on Netlify.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

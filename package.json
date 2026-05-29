@@ -1,0 +1,30 @@
+{
+  "name": "aisolutiondesk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AISOLUTIONDESK — The AI Workforce Platform",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "db:generate": "pnpm --filter @aisolutiondesk/db generate",
+    "db:migrate": "pnpm --filter @aisolutiondesk/db migrate:dev",
+    "db:deploy": "pnpm --filter @aisolutiondesk/db migrate:deploy",
+    "db:seed": "pnpm --filter @aisolutiondesk/db seed",
+    "db:studio": "pnpm --filter @aisolutiondesk/db studio"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "prettier": "^3.3.0",
+    "turbo": "^2.1.0",
+    "typescript": "^5.5.0"
+  }
+}
