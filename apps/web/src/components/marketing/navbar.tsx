@@ -1,0 +1,99 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Sparkles, Menu, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+
+const LINKS = [
+  { label: 'Home', href: '#home' },
+  { label: 'Solutions', href: '#solutions' },
+  { label: 'Pricing', href: '#pricing' },
+  { label: 'Plans', href: '#plans' },
+];
+
+/**
+ * Sticky marketing top-bar. Turns from transparent to frosted glass once the
+ * visitor scrolls past the hero, and collapses to a sheet menu on mobile.
+ */
+export function Navbar() {
+  const [scrolled, setScrolled] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  return (
+    <header
+      className={cn(
+        'fixed inset-x-0 top-0 z-50 transition-all duration-300',
+        scrolled ? 'border-b border-white/10 bg-background/70 backdrop-blur-xl' : 'border-b border-transparent',
+      )}
+    >
+      <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+        <Link href="#home" className="flex items-center gap-2 font-semibold">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/20 ring-1 ring-primary/40">
+            <Sparkles className="h-4 w-4 text-primary" />
+          </span>
+          <span className="tracking-tight">AISOLUTIONDESK</span>
+        </Link>
+
+        <div className="hidden items-center gap-8 md:flex">
+          {LINKS.map((l) => (
+            <a
+              key={l.href}
+              href={l.href}
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {l.label}
+            </a>
+          ))}
+        </div>
+
+        <div className="hidden items-center gap-3 md:flex">
+          <Link href="/sign-in">
+            <Button variant="ghost" size="sm">
+              Sign in
+            </Button>
+          </Link>
+          <Link href="/sign-up">
+            <Button size="sm">Start free</Button>
+          </Link>
+        </div>
+
+        <button
+          className="md:hidden"
+          onClick={() => setOpen((v) => !v)}
+          aria-label="Toggle menu"
+        >
+          {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </button>
+      </nav>
+
+      {open && (
+        <div className="border-t border-white/10 bg-background/95 px-6 py-4 backdrop-blur-xl md:hidden">
+          <div className="flex flex-col gap-4">
+            {LINKS.map((l) => (
+              <a
+                key={l.href}
+                href={l.href}
+                onClick={() => setOpen(false)}
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
+                {l.label}
+              </a>
+            ))}
+            <Link href="/sign-up" onClick={() => setOpen(false)}>
+              <Button className="w-full">Start free</Button>
+            </Link>
+          </div>
+        </div>
+      )}
+    </header>
+  );
+}

@@ -61,10 +61,21 @@ const config: Config = {
         shimmer: {
           '100%': { transform: 'translateX(100%)' },
         },
+        'scan-down': {
+          '0%': { transform: 'translateY(0)', opacity: '0' },
+          '50%': { opacity: '1' },
+          '100%': { transform: 'translateY(220px)', opacity: '0' },
+        },
+        'ai-ping': {
+          '0%': { transform: 'scale(1)', opacity: '0.8' },
+          '75%, 100%': { transform: 'scale(2.6)', opacity: '0' },
+        },
       },
       animation: {
         'fade-up': 'fade-up 0.4s ease-out both',
         shimmer: 'shimmer 1.5s infinite',
+        'scan-down': 'scan-down 2.2s ease-in-out infinite',
+        'ai-ping': 'ai-ping 1.8s cubic-bezier(0,0,0.2,1) infinite',
       },
     },
   },
