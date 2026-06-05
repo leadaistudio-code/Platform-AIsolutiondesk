@@ -1,7 +1,7 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import {
   ArrowRight,
-  Sparkles,
   Zap,
   ShieldCheck,
   Clock,
@@ -9,14 +9,13 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/marketing/navbar';
-import { HeroScene } from '@/components/marketing/hero-scene';
-import { Solutions } from '@/components/marketing/solutions';
-import { Pricing } from '@/components/marketing/pricing';
+import { Footer } from '@/components/marketing/footer';
 
 /**
  * The public marketing homepage ("/"). A sales-oriented SaaS landing page with
- * a live 3D hero, solutions, pricing, and plan sections. The product dashboard
- * lives behind /dashboard and is unaffected by this page.
+ * a live 3D hero, stats, and feature highlights. Solutions, Pricing, and Plans
+ * each live on their own route (/solutions, /pricing, /plans). The product
+ * dashboard lives behind /dashboard and is unaffected by this page.
  */
 
 const STATS = [
@@ -43,20 +42,25 @@ export default function LandingPage() {
         id="home"
         className="relative flex min-h-screen flex-col items-center justify-center px-6 pt-24 text-center"
       >
-        <HeroScene />
+        {/* Hero background image */}
+        <Image
+          src="/hero.jpg"
+          alt="AI automation network — neural agents connected to a central core"
+          fill
+          priority
+          sizes="100vw"
+          className="pointer-events-none -z-10 object-cover object-center opacity-90"
+        />
+        {/* Readability overlay: darken + fade the image edges into the page */}
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-background/70 via-background/40 to-background" />
         <div className="pointer-events-none absolute inset-0 -z-20 bg-aurora opacity-60" />
 
-        <div className="animate-fade-up mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur">
-          <Sparkles className="h-4 w-4 text-primary" />
-          The AI Workforce Platform
-        </div>
-
-        <h1 className="animate-fade-up max-w-4xl bg-gradient-to-b from-white via-white to-white/50 bg-clip-text text-5xl font-bold leading-[1.05] tracking-tight text-transparent sm:text-6xl md:text-7xl">
+        <h1 className="animate-fade-up max-w-4xl bg-gradient-to-b from-white via-white to-white/50 bg-clip-text pt-6 text-5xl font-bold leading-[1.05] tracking-tight text-transparent sm:text-6xl md:text-7xl">
           Hire an AI workforce that
           <br className="hidden sm:block" /> never clocks out
         </h1>
 
-        <p className="animate-fade-up mt-6 max-w-2xl text-lg text-muted-foreground">
+        <p className="animate-fade-up mt-6 max-w-2xl text-lg font-medium text-white/90 [text-shadow:_0_1px_14px_rgb(0_0_0_/_70%)]">
           AISOLUTIONDESK unifies an AI Service Desk, Employee Assistant, Sales
           Agent, and Social Media manager into one platform — so your team ships
           more while doing less.
@@ -69,11 +73,11 @@ export default function LandingPage() {
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Button>
           </Link>
-          <a href="#solutions">
+          <Link href="/solutions">
             <Button size="lg" variant="outline">
               Explore solutions
             </Button>
-          </a>
+          </Link>
         </div>
 
         <p className="animate-fade-up mt-6 text-xs text-muted-foreground">
@@ -94,9 +98,6 @@ export default function LandingPage() {
           ))}
         </div>
       </section>
-
-      {/* ---------------- SOLUTIONS ---------------- */}
-      <Solutions />
 
       {/* ---------------- FEATURES ---------------- */}
       <section className="relative border-y border-white/10 bg-white/[0.02] py-28">
@@ -123,9 +124,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ---------------- PRICING / PLANS ---------------- */}
-      <Pricing />
-
       {/* ---------------- FINAL CTA ---------------- */}
       <section className="relative px-6 pb-28">
         <div className="glass relative mx-auto max-w-5xl overflow-hidden rounded-3xl px-8 py-16 text-center">
@@ -144,9 +142,9 @@ export default function LandingPage() {
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Button>
             </Link>
-            <Link href="/dashboard">
+            <Link href="/pricing">
               <Button size="lg" variant="outline">
-                Open the platform
+                View pricing
               </Button>
             </Link>
           </div>
@@ -154,22 +152,7 @@ export default function LandingPage() {
       </section>
 
       {/* ---------------- FOOTER ---------------- */}
-      <footer className="border-t border-white/10 px-6 py-10">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 sm:flex-row">
-          <div className="flex items-center gap-2 font-semibold">
-            <Sparkles className="h-4 w-4 text-primary" />
-            AISOLUTIONDESK
-          </div>
-          <p className="text-sm text-muted-foreground">
-            © 2026 AISOLUTIONDESK. The AI Workforce Platform.
-          </p>
-          <div className="flex gap-6 text-sm text-muted-foreground">
-            <a href="#solutions" className="hover:text-foreground">Solutions</a>
-            <a href="#pricing" className="hover:text-foreground">Pricing</a>
-            <Link href="/sign-in" className="hover:text-foreground">Sign in</Link>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { AppProviders } from '@/components/providers/app-providers';
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: 'AISOLUTIONDESK — The AI Workforce Platform',
+  title: 'AISOLUTIONDESK — AI Workforce Platform',
   description:
     'Automate support, internal knowledge, and sales with enterprise AI agents.',
 };
