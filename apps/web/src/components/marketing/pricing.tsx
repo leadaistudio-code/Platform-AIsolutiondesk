@@ -29,7 +29,7 @@ interface Plan {
 const PLANS: Plan[] = [
   {
     name: 'Starter',
-    monthly: 49,
+    monthly: 3999,
     desc: 'For small teams getting their first AI agent live.',
     features: ['1 AI product', 'Up to 3 seats', '5,000 AI actions / mo', 'Email support', 'Standard integrations'],
     cta: 'Start 3-day free trial',
@@ -38,7 +38,7 @@ const PLANS: Plan[] = [
   },
   {
     name: 'Growth',
-    monthly: 199,
+    monthly: 15999,
     desc: 'For scaling teams running multiple AI workflows.',
     features: ['Up to 3 AI products', 'Up to 15 seats', '50,000 AI actions / mo', 'Priority support', 'CRM & Slack sync', 'Custom brand persona'],
     cta: 'Start 3-day free trial',
@@ -49,7 +49,7 @@ const PLANS: Plan[] = [
     name: 'Enterprise',
     monthly: null,
     desc: 'For organizations deploying an AI workforce at scale.',
-    features: ['All 4 AI products', 'Unlimited seats', 'Unlimited AI actions', 'Dedicated success manager', 'SSO & SCIM', 'SLA & on-prem options'],
+    features: ['All 8 AI products', 'Unlimited seats', 'Unlimited AI actions', 'Dedicated success manager', 'SSO & SCIM', 'SLA & on-prem options'],
     cta: 'Talk to sales',
     plan: null,
     highlighted: false,
@@ -76,7 +76,7 @@ export function Pricing() {
         </p>
 
         {/* Billing toggle */}
-        <div className="mt-8 inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 p-1 backdrop-blur">
+        <div className="mt-8 inline-flex items-center gap-3 rounded-full border border-border bg-foreground/5 p-1 backdrop-blur">
           <button
             onClick={() => setAnnual(false)}
             className={cn(
@@ -138,14 +138,14 @@ export function Pricing() {
                   <span className="text-4xl font-bold">Custom</span>
                 ) : (
                   <>
-                    <span className="text-4xl font-bold">${effectiveMonthly}</span>
+                    <span className="text-4xl font-bold">₹{effectiveMonthly.toLocaleString('en-IN')}</span>
                     <span className="pb-1 text-muted-foreground">/mo</span>
                   </>
                 )}
               </div>
               <p className="mt-1 h-5 text-xs text-muted-foreground">
                 {effectiveMonthly !== null && annual
-                  ? `Billed annually at $${p.monthly! * 10}/yr`
+                  ? `Billed annually at ₹${(p.monthly! * 10).toLocaleString('en-IN')}/yr`
                   : effectiveMonthly !== null
                     ? 'Billed monthly'
                     : 'Tailored to your organization'}
@@ -178,7 +178,7 @@ export function Pricing() {
 
               {p.plan && effectiveMonthly !== null && (
                 <p className="mt-2 text-center text-xs text-muted-foreground">
-                  3 days free, then ${effectiveMonthly}/mo. Cancel anytime.
+                  3 days free, then ₹{effectiveMonthly.toLocaleString('en-IN')}/mo. Cancel anytime.
                 </p>
               )}
 

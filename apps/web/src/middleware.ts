@@ -13,6 +13,11 @@ const isProtected = createRouteMatcher([
   '/service-desk(.*)',
   '/assistant(.*)',
   '/sales(.*)',
+  '/social(.*)',
+  '/customer-support(.*)',
+  '/finance(.*)',
+  '/finance-analysis(.*)',
+  '/marketing(.*)',
 ]);
 
 export default hasClerk

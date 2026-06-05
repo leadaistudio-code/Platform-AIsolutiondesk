@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 import { Navbar } from '@/components/marketing/navbar';
 import { Solutions } from '@/components/marketing/solutions';
+import { SolutionsExplorer } from '@/components/marketing/solutions-explorer';
 import { Footer } from '@/components/marketing/footer';
 
 export const metadata: Metadata = {
   title: 'Solutions · AISOLUTIONDESK',
   description:
-    'Four AI agents on one platform — AI Service Desk, Employee Assistant, Sales Agent, and Social Media manager.',
+    'Eight AI agents on one platform — Service Desk, Employee Assistant, Sales, Social Media, Customer Support, Finance, Finance Analysis, and Marketing & SEO.',
 };
 
 /**
@@ -20,6 +21,7 @@ export default function SolutionsPage() {
       <Navbar />
       <main className="pt-16">
         <Solutions />
+        <SolutionsExplorer />
       </main>
       <Footer />
     </div>

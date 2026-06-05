@@ -28,6 +28,24 @@ import type {
   SubscriptionStatusDTO,
   CreateCheckoutInput,
   CreateCheckoutDTO,
+  FinanceMetricsDTO,
+  FinanceReportDTO,
+  FinanceForecastDTO,
+  MarketingMetricsDTO,
+  MarketingContentDTO,
+  GenerateContentInput,
+  GeneratedContentDTO,
+  RepurposeInput,
+  RepurposeResultDTO,
+  ContentIdeasInput,
+  ContentIdeasDTO,
+  BrandProfileDTO,
+  UpdateBrandProfileInput,
+  UpdateMarketingContentInput,
+  KeywordResearchInput,
+  KeywordResearchDTO,
+  SeoAnalyzeInput,
+  SeoAnalysisDTO,
   ProposalDTO,
   UpdateOrgProductsInput,
   ReviewSocialPostInput,
@@ -154,6 +172,60 @@ export function buildApi(getToken: TokenGetter) {
     // Sales analytics + insights
     getSalesAnalytics: () => request<SalesAnalyticsDTO>('/sales/analytics'),
     getSalesInsights: () => request<SalesInsightsDTO>('/sales/insights'),
+
+    // ── Finance Analysis ──
+    getFinanceMetrics: () =>
+      request<FinanceMetricsDTO>('/finance-analysis/metrics'),
+    generateFinanceReport: () =>
+      request<FinanceReportDTO>('/finance-analysis/report', { method: 'POST' }),
+    generateFinanceForecast: () =>
+      request<FinanceForecastDTO>('/finance-analysis/forecast', { method: 'POST' }),
+
+    // ── Marketing & SEO ──
+    getMarketingMetrics: () =>
+      request<MarketingMetricsDTO>('/marketing/metrics'),
+    listMarketingContent: () =>
+      request<MarketingContentDTO[]>('/marketing/content'),
+    getMarketingContent: (id: string) =>
+      request<MarketingContentDTO>(`/marketing/content/${id}`),
+    updateMarketingContent: (id: string, body: UpdateMarketingContentInput) =>
+      request<MarketingContentDTO>(`/marketing/content/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    deleteMarketingContent: (id: string) =>
+      request<void>(`/marketing/content/${id}`, { method: 'DELETE' }),
+    generateMarketingContent: (body: GenerateContentInput) =>
+      request<GeneratedContentDTO>('/marketing/generate', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    repurposeMarketingContent: (body: RepurposeInput) =>
+      request<RepurposeResultDTO>('/marketing/repurpose', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    marketingIdeas: (body: ContentIdeasInput) =>
+      request<ContentIdeasDTO>('/marketing/ideas', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    getBrandProfile: () => request<BrandProfileDTO>('/marketing/brand'),
+    updateBrandProfile: (body: UpdateBrandProfileInput) =>
+      request<BrandProfileDTO>('/marketing/brand', {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      }),
+    seoKeywords: (body: KeywordResearchInput) =>
+      request<KeywordResearchDTO>('/marketing/seo/keywords', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    seoAnalyze: (body: SeoAnalyzeInput) =>
+      request<SeoAnalysisDTO>('/marketing/seo/analyze', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
 
     // CRM connections
     listCrm: () => request<CrmConnectionDTO[]>('/crm'),

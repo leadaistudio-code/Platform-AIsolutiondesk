@@ -14,6 +14,8 @@ import { SocialModule } from './modules/social/social.module';
 import { MeModule } from './modules/me/me.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { BillingModule } from './modules/billing/billing.module';
+import { FinanceAnalysisModule } from './modules/finance-analysis/finance-analysis.module';
+import { MarketingModule } from './modules/marketing/marketing.module';
 import { AiModule } from './ai/ai.module';
 import { EventsModule } from './events/events.module';
 
@@ -42,6 +44,8 @@ import { EventsModule } from './events/events.module';
     MeModule,
     AdminModule,
     BillingModule,
+    FinanceAnalysisModule,
+    MarketingModule,
   ],
   providers: [
     ClerkService,

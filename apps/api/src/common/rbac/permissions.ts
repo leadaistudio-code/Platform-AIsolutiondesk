@@ -32,6 +32,11 @@ export const PERMISSIONS = [
   'social:read',
   'social:write',
   'social:approve',
+  // Finance Analysis
+  'finance:read',
+  // Marketing & SEO
+  'marketing:read',
+  'marketing:write',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -44,6 +49,8 @@ const VIEWER: Permission[] = [
   'tickets:read',
   'kb:read',
   'documents:read',
+  'finance:read',
+  'marketing:read',
   'leads:read',
   'campaigns:read',
   'social:read',
@@ -60,6 +67,7 @@ const AGENT: Permission[] = [
   'proposals:write',
   'documents:write',
   'social:write',
+  'marketing:write',
 ];
 
 const MANAGER: Permission[] = [...AGENT, 'kb:write', 'workflows:manage', 'social:approve'];

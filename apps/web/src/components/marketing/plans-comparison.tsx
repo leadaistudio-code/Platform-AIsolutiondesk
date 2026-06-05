@@ -24,8 +24,8 @@ interface PlanColumn {
 }
 
 const PLANS: PlanColumn[] = [
-  { name: 'Starter', price: '$49', cadence: '/mo', cta: 'Start free trial', href: '/pricing', highlighted: false },
-  { name: 'Growth', price: '$199', cadence: '/mo', cta: 'Start free trial', href: '/pricing', highlighted: true },
+  { name: 'Starter', price: '₹3,999', cadence: '/mo', cta: 'Start free trial', href: '/pricing', highlighted: false },
+  { name: 'Growth', price: '₹15,999', cadence: '/mo', cta: 'Start free trial', href: '/pricing', highlighted: true },
   { name: 'Enterprise', price: 'Custom', cadence: '', cta: 'Talk to sales', href: '/sign-up', highlighted: false },
 ];
 
@@ -36,7 +36,7 @@ interface FeatureRow {
 }
 
 const ROWS: FeatureRow[] = [
-  { label: 'AI products', cells: ['1 product', 'Up to 3', 'All 4'] },
+  { label: 'AI products', cells: ['1 product', 'Up to 3', 'All 8'] },
   { label: 'Team seats', cells: ['Up to 3', 'Up to 15', 'Unlimited'] },
   { label: 'AI actions / mo', cells: ['5,000', '50,000', 'Unlimited'] },
   { label: 'Support', cells: ['Email', 'Priority', 'Dedicated manager'] },
@@ -102,7 +102,7 @@ export function PlansComparison() {
           </thead>
           <tbody>
             {ROWS.map((row) => (
-              <tr key={row.label} className="border-t border-white/10">
+              <tr key={row.label} className="border-t border-border">
                 <td className="p-4 text-sm font-medium text-foreground">{row.label}</td>
                 {row.cells.map((cell, i) => (
                   <td
@@ -117,7 +117,7 @@ export function PlansComparison() {
                 ))}
               </tr>
             ))}
-            <tr className="border-t border-white/10">
+            <tr className="border-t border-border">
               <td className="p-4" />
               {PLANS.map((p) => (
                 <td

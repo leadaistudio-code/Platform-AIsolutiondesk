@@ -6,6 +6,8 @@ export * from './sales';
 export * from './social';
 export * from './platform';
 export * from './billing';
+export * from './finance';
+export * from './marketing';
 
 /**
  * Shared API contracts. These Zod schemas are validated at runtime on the

@@ -27,6 +27,10 @@ const NAV_KEY_TO_PRODUCT: Record<ProductNav['key'], ProductKey> = {
   'employee-assistant': 'EMPLOYEE_ASSISTANT',
   'sales-agent': 'SALES_AGENT',
   'social-media': 'SOCIAL_MEDIA',
+  'customer-support': 'CUSTOMER_SUPPORT',
+  finance: 'FINANCE',
+  'finance-analysis': 'FINANCE_ANALYSIS',
+  'marketing-seo': 'MARKETING_SEO',
 };
 
 /**

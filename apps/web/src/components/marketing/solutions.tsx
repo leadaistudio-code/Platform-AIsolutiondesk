@@ -8,6 +8,10 @@ import {
   MessageSquare,
   Send,
   Share2,
+  Headset,
+  Receipt,
+  LineChart,
+  Megaphone,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -69,6 +73,46 @@ const SOLUTIONS: Solution[] = [
     iconColor: 'text-pink-300',
     scan: '#ec4899',
   },
+  {
+    icon: Headset,
+    name: 'AI Customer Support',
+    tagline: 'External CX & helpdesk',
+    desc: 'Resolves customer conversations across chat, email, and messaging — deflecting FAQs, drafting replies, and escalating with full context to your helpdesk.',
+    glow: 'from-emerald-500/25 to-teal-500/10',
+    ring: 'ring-emerald-400/30',
+    iconColor: 'text-emerald-300',
+    scan: '#10b981',
+  },
+  {
+    icon: Receipt,
+    name: 'AI Finance Agent',
+    tagline: 'AP, AR & expenses',
+    desc: 'Reads and codes invoices, matches purchase orders, flags anomalies, automates expense categorization, and chases overdue payments so the books close faster.',
+    glow: 'from-amber-500/25 to-orange-500/10',
+    ring: 'ring-amber-400/30',
+    iconColor: 'text-amber-300',
+    scan: '#f59e0b',
+  },
+  {
+    icon: LineChart,
+    name: 'AI Finance Analysis',
+    tagline: 'Reporting & forecasting',
+    desc: 'Turns financial data into instant reports, cash-flow forecasts, and variance insights — ask in plain language and get the numbers and the why behind them.',
+    glow: 'from-teal-500/25 to-cyan-500/10',
+    ring: 'ring-teal-400/30',
+    iconColor: 'text-teal-300',
+    scan: '#2dd4bf',
+  },
+  {
+    icon: Megaphone,
+    name: 'AI Marketing & SEO',
+    tagline: 'Content & growth',
+    desc: 'Set your brand voice once, then generate SEO-optimized blogs, emails, and ads, research keywords, score drafts, and turn one piece into posts for every channel — a 5-hour task done in 15 minutes.',
+    glow: 'from-orange-500/25 to-rose-500/10',
+    ring: 'ring-orange-400/30',
+    iconColor: 'text-orange-300',
+    scan: '#fb923c',
+  },
 ];
 
 const container: Variants = {
@@ -100,7 +144,7 @@ export function Solutions() {
           Solutions
         </span>
         <h2 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">
-          Four AI agents. One platform.
+          Eight AI agents. One platform.
         </h2>
         <p className="mt-4 text-lg text-muted-foreground">
           Turn on what you need today and add the rest as you grow. Every agent
@@ -150,7 +194,7 @@ export function Solutions() {
               />
 
               <div
-                className={`relative mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-white/5 ring-1 ${s.ring}`}
+                className={`relative mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-foreground/5 ring-1 ${s.ring}`}
               >
                 <s.icon className={`h-6 w-6 ${s.iconColor}`} />
                 {/* Pulsing neural node on the icon */}

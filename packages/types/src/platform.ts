@@ -13,6 +13,10 @@ export const PRODUCT_KEYS = [
   'EMPLOYEE_ASSISTANT',
   'SOCIAL_MEDIA',
   'SALES_AGENT',
+  'CUSTOMER_SUPPORT',
+  'FINANCE',
+  'FINANCE_ANALYSIS',
+  'MARKETING_SEO',
 ] as const;
 export type ProductKey = (typeof PRODUCT_KEYS)[number];
 
@@ -22,6 +26,10 @@ export const PRODUCT_LABELS: Record<ProductKey, string> = {
   EMPLOYEE_ASSISTANT: 'AI Employee Assistant',
   SOCIAL_MEDIA: 'AI Social Media',
   SALES_AGENT: 'AI Sales Agent',
+  CUSTOMER_SUPPORT: 'AI Customer Support',
+  FINANCE: 'AI Finance Agent',
+  FINANCE_ANALYSIS: 'AI Finance Analysis',
+  MARKETING_SEO: 'AI Marketing & SEO',
 };
 
 export interface MeDTO {

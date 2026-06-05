@@ -28,6 +28,10 @@ enum Product {
   EMPLOYEE_ASSISTANT
   SOCIAL_MEDIA
   SALES_AGENT
+  CUSTOMER_SUPPORT
+  FINANCE
+  FINANCE_ANALYSIS
+  MARKETING_SEO
 }
 
 enum Role {
@@ -229,8 +233,91 @@ model Organization {
   outreaches      Outreach[]
   proposals       Proposal[]
   socialPosts     SocialPost[]
+  financialSnapshots FinancialSnapshot[]
+  marketingContent   MarketingContent[]
+  marketingBrandProfile MarketingBrandProfile?
 
   @@index([slug])
+}
+
+enum MarketingContentType {
+  BLOG_POST
+  EMAIL
+  AD_COPY
+  SOCIAL_POST
+  LANDING_PAGE
+  NEWSLETTER
+  PRODUCT_DESCRIPTION
+}
+
+enum MarketingContentStatus {
+  DRAFT
+  APPROVED
+  PUBLISHED
+}
+
+// A piece of AI-generated marketing content in the org's content library.
+model MarketingContent {
+  id              String                 @id @default(cuid())
+  organizationId  String
+  type            MarketingContentType
+  title           String
+  // The brief / prompt the content was generated from.
+  brief           String
+  body            String
+  metaDescription String?
+  keywords        String[]               @default([])
+  // 0-100 SEO score, set when analyzed.
+  seoScore        Int?
+  channel         String?
+  status          MarketingContentStatus @default(DRAFT)
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, type, status])
+  @@index([organizationId, createdAt])
+}
+
+// The org's brand voice — woven into every AI generation so output stays on-brand.
+model MarketingBrandProfile {
+  id             String   @id @default(cuid())
+  organizationId String   @unique
+  brandName      String?
+  description    String?
+  tone           String?
+  audience       String?
+  valueProps     String?
+  keywords       String[] @default([])
+  doNotMention   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+// One month of financial figures for an organization. The AI Finance Analysis
+// agent reads these to compute KPIs (MRR, burn, runway) and to generate
+// reports and forecasts. Amounts are whole US dollars.
+model FinancialSnapshot {
+  id               String   @id @default(cuid())
+  organizationId   String
+  // First day of the month this snapshot covers.
+  period           DateTime
+  revenue          Int      @default(0)
+  expenses         Int      @default(0)
+  // Cash balance at the end of the period.
+  cash             Int      @default(0)
+  newCustomers     Int      @default(0)
+  churnedCustomers Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, period])
+  @@index([organizationId, period])
 }
 
 /// A platform user. Mirrors a Clerk user (clerkUserId).

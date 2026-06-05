@@ -23,6 +23,14 @@ import {
   PenSquare,
   CheckSquare,
   Palette,
+  Headset,
+  Inbox,
+  Receipt,
+  Wallet,
+  LineChart,
+  TrendingUp,
+  PenTool,
+  Search,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -33,7 +41,15 @@ export interface NavItem {
 }
 
 export interface ProductNav {
-  key: 'service-desk' | 'employee-assistant' | 'sales-agent' | 'social-media';
+  key:
+    | 'service-desk'
+    | 'employee-assistant'
+    | 'sales-agent'
+    | 'social-media'
+    | 'customer-support'
+    | 'finance'
+    | 'finance-analysis'
+    | 'marketing-seo';
   name: string;
   tagline: string;
   items: NavItem[];
@@ -98,6 +114,46 @@ export const PRODUCTS: ProductNav[] = [
       { label: 'Proposal Generator', href: '/sales/proposals', icon: FileSignature },
       { label: 'Analytics', href: '/sales/analytics', icon: BarChart3 },
       { label: 'AI Insights', href: '/sales/insights', icon: Lightbulb },
+    ],
+  },
+  {
+    key: 'customer-support',
+    name: 'AI Customer Support',
+    tagline: 'External CX & helpdesk',
+    items: [
+      { label: 'Overview', href: '/customer-support', icon: LayoutDashboard },
+      { label: 'Conversations', href: '/customer-support/conversations', icon: Inbox },
+      { label: 'Knowledge Base', href: '/customer-support/knowledge', icon: BookOpen },
+    ],
+  },
+  {
+    key: 'finance',
+    name: 'AI Finance Agent',
+    tagline: 'AP, AR & expenses',
+    items: [
+      { label: 'Overview', href: '/finance', icon: LayoutDashboard },
+      { label: 'Invoices', href: '/finance/invoices', icon: Receipt },
+      { label: 'Expenses', href: '/finance/expenses', icon: Wallet },
+    ],
+  },
+  {
+    key: 'finance-analysis',
+    name: 'AI Finance Analysis',
+    tagline: 'Reporting & forecasting',
+    items: [
+      { label: 'Overview', href: '/finance-analysis', icon: LayoutDashboard },
+      { label: 'Reports', href: '/finance-analysis/reports', icon: LineChart },
+      { label: 'Forecasts', href: '/finance-analysis/forecasts', icon: TrendingUp },
+    ],
+  },
+  {
+    key: 'marketing-seo',
+    name: 'AI Marketing & SEO',
+    tagline: 'Content & growth',
+    items: [
+      { label: 'Overview', href: '/marketing', icon: LayoutDashboard },
+      { label: 'Content Studio', href: '/marketing/content', icon: PenTool },
+      { label: 'SEO Planner', href: '/marketing/seo', icon: Search },
     ],
   },
 ];
