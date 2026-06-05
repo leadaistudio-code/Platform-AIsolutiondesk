@@ -59,6 +59,11 @@ enum SubscriptionStatus {
   CANCELED
 }
 
+enum BillingCycle {
+  MONTHLY
+  ANNUAL
+}
+
 enum IntegrationProvider {
   JIRA
   SERVICENOW
@@ -289,6 +294,15 @@ model Subscription {
   status               SubscriptionStatus @default(TRIALING)
   stripeCustomerId     String?            @unique
   stripeSubscriptionId String?            @unique
+  // Razorpay (recurring subscriptions). Set once an org checks out via Razorpay.
+  razorpayCustomerId     String?          @unique
+  razorpaySubscriptionId String?          @unique
+  razorpayPlanId         String?
+  // Lemon Squeezy (Merchant of Record). Set once an org checks out via LS.
+  lemonCustomerId        String?          @unique
+  lemonSubscriptionId    String?          @unique
+  lemonVariantId         String?
+  billingCycle           BillingCycle     @default(MONTHLY)
   seats                Int                @default(5)
   currentPeriodEnd     DateTime?
   createdAt            DateTime           @default(now())

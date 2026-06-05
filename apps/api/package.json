@@ -11,6 +11,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@aisolutiondesk/ai": "workspace:*",
+    "@aisolutiondesk/config": "workspace:*",
+    "@aisolutiondesk/db": "workspace:*",
+    "@aisolutiondesk/types": "workspace:*",
     "@anthropic-ai/sdk": "^0.27.0",
     "@clerk/backend": "^1.9.0",
     "@nestjs/common": "^10.4.0",
@@ -21,14 +25,11 @@
     "bullmq": "^5.12.0",
     "ioredis": "^5.4.0",
     "openai": "^4.56.0",
+    "razorpay": "^2.9.6",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.0",
     "svix": "^1.30.0",
-    "zod": "^3.23.0",
-    "@aisolutiondesk/ai": "workspace:*",
-    "@aisolutiondesk/config": "workspace:*",
-    "@aisolutiondesk/db": "workspace:*",
-    "@aisolutiondesk/types": "workspace:*"
+    "zod": "^3.23.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.0",

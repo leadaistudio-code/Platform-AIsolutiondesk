@@ -64,6 +64,30 @@ const envSchema = z.object({
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
 
+  // Billing — Razorpay (recurring Subscriptions). Optional so the app still
+  // boots without billing configured; the billing endpoints return a clear
+  // error until these are set.
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+  // Razorpay Plan ids (created in the Razorpay dashboard), one per tier × cycle.
+  // Maps our PlanTier + billing cycle to the matching Razorpay plan_id.
+  RAZORPAY_PLAN_STARTER_MONTHLY: z.string().optional(),
+  RAZORPAY_PLAN_STARTER_ANNUAL: z.string().optional(),
+  RAZORPAY_PLAN_GROWTH_MONTHLY: z.string().optional(),
+  RAZORPAY_PLAN_GROWTH_ANNUAL: z.string().optional(),
+
+  // Billing — Lemon Squeezy (Merchant of Record, international payments + tax).
+  // Optional so the app boots without billing configured.
+  LEMONSQUEEZY_API_KEY: z.string().optional(),
+  LEMONSQUEEZY_STORE_ID: z.string().optional(),
+  LEMONSQUEEZY_WEBHOOK_SECRET: z.string().optional(),
+  // Lemon Squeezy variant ids (one per tier × cycle), created in the dashboard.
+  LEMONSQUEEZY_VARIANT_STARTER_MONTHLY: z.string().optional(),
+  LEMONSQUEEZY_VARIANT_STARTER_ANNUAL: z.string().optional(),
+  LEMONSQUEEZY_VARIANT_GROWTH_MONTHLY: z.string().optional(),
+  LEMONSQUEEZY_VARIANT_GROWTH_ANNUAL: z.string().optional(),
+
   // Local-dev convenience: when true (and NOT production), unauthenticated
   // requests are treated as the OWNER of DEV_ORG_SLUG. Lets you use the app
   // before Clerk is configured. MUST stay false/unset in production.

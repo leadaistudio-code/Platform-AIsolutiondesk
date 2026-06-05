@@ -22,6 +22,12 @@ import type {
   GenerateSocialPostInput,
   MarkSocialPostedInput,
   MeDTO,
+  CreateSubscriptionInput,
+  CreateSubscriptionDTO,
+  VerifySubscriptionInput,
+  SubscriptionStatusDTO,
+  CreateCheckoutInput,
+  CreateCheckoutDTO,
   ProposalDTO,
   UpdateOrgProductsInput,
   ReviewSocialPostInput,
@@ -214,6 +220,26 @@ export function buildApi(getToken: TokenGetter) {
       request<SocialPostDTO>(`/social/posts/${id}/image`, { method: 'DELETE' }),
     // Current user + org + entitlements
     getMe: () => request<MeDTO>('/me'),
+
+    // ── Billing (Razorpay subscriptions) ──
+    getSubscription: () =>
+      request<SubscriptionStatusDTO>('/billing/subscription'),
+    createSubscription: (body: CreateSubscriptionInput) =>
+      request<CreateSubscriptionDTO>('/billing/subscription', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    verifySubscription: (body: VerifySubscriptionInput) =>
+      request<SubscriptionStatusDTO>('/billing/verify', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    // Lemon Squeezy hosted checkout (Merchant of Record, international).
+    createCheckout: (body: CreateCheckoutInput) =>
+      request<CreateCheckoutDTO>('/billing/lemonsqueezy/checkout', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
 
     // Platform admin — list orgs & toggle their products
     listAdminOrgs: () => request<AdminOrgDTO[]>('/admin/organizations'),

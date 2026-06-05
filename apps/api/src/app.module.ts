@@ -13,6 +13,7 @@ import { SalesModule } from './modules/sales/sales.module';
 import { SocialModule } from './modules/social/social.module';
 import { MeModule } from './modules/me/me.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { BillingModule } from './modules/billing/billing.module';
 import { AiModule } from './ai/ai.module';
 import { EventsModule } from './events/events.module';
 
@@ -40,6 +41,7 @@ import { EventsModule } from './events/events.module';
     SocialModule,
     MeModule,
     AdminModule,
+    BillingModule,
   ],
   providers: [
     ClerkService,

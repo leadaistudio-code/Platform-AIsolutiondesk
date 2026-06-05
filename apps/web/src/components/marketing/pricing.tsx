@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Check } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
+import type { BillingPlan } from '@aisolutiondesk/types';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useLemonCheckout } from '@/lib/use-lemon-checkout';
 
 /**
  * Pricing section with a monthly/annual billing toggle. Annual billing applies
@@ -19,7 +21,8 @@ interface Plan {
   desc: string;
   features: string[];
   cta: string;
-  href: string;
+  /** The billing plan to subscribe to via Razorpay, or null for contact-sales. */
+  plan: BillingPlan | null;
   highlighted: boolean;
 }
 
@@ -29,8 +32,8 @@ const PLANS: Plan[] = [
     monthly: 49,
     desc: 'For small teams getting their first AI agent live.',
     features: ['1 AI product', 'Up to 3 seats', '5,000 AI actions / mo', 'Email support', 'Standard integrations'],
-    cta: 'Start free',
-    href: '/sign-up',
+    cta: 'Start 3-day free trial',
+    plan: 'STARTER',
     highlighted: false,
   },
   {
@@ -38,8 +41,8 @@ const PLANS: Plan[] = [
     monthly: 199,
     desc: 'For scaling teams running multiple AI workflows.',
     features: ['Up to 3 AI products', 'Up to 15 seats', '50,000 AI actions / mo', 'Priority support', 'CRM & Slack sync', 'Custom brand persona'],
-    cta: 'Start free trial',
-    href: '/sign-up',
+    cta: 'Start 3-day free trial',
+    plan: 'GROWTH',
     highlighted: true,
   },
   {
@@ -48,13 +51,15 @@ const PLANS: Plan[] = [
     desc: 'For organizations deploying an AI workforce at scale.',
     features: ['All 4 AI products', 'Unlimited seats', 'Unlimited AI actions', 'Dedicated success manager', 'SSO & SCIM', 'SLA & on-prem options'],
     cta: 'Talk to sales',
-    href: '/sign-up',
+    plan: null,
     highlighted: false,
   },
 ];
 
 export function Pricing() {
   const [annual, setAnnual] = useState(false);
+  const { start, pending, error } = useLemonCheckout();
+  const cycle = annual ? 'ANNUAL' : 'MONTHLY';
 
   return (
     <section id="pricing" className="relative mx-auto max-w-7xl px-6 py-28">
@@ -66,8 +71,8 @@ export function Pricing() {
           Plans that scale with you
         </h2>
         <p className="mt-4 text-lg text-muted-foreground">
-          Start free, upgrade when you see the ROI. Every plan includes the full
-          platform foundation.
+          Every paid plan starts with a <span className="font-semibold text-foreground">3-day free trial</span> —
+          you&apos;re not charged until it ends, and you can cancel anytime.
         </p>
 
         {/* Billing toggle */}
@@ -99,6 +104,10 @@ export function Pricing() {
             </span>
           </button>
         </div>
+
+        {error && (
+          <p className="mt-4 text-sm text-destructive">{error}</p>
+        )}
       </div>
 
       <div className="mt-16 grid items-start gap-6 lg:grid-cols-3">
@@ -144,14 +153,34 @@ export function Pricing() {
 
               <p className="mt-3 text-sm text-muted-foreground">{p.desc}</p>
 
-              <Link href={p.href} className="mt-6 block">
+              {p.plan ? (
                 <Button
-                  className="w-full"
+                  className="mt-6 w-full"
                   variant={p.highlighted ? 'primary' : 'outline'}
+                  disabled={pending !== null}
+                  onClick={() => start(p.plan!, cycle)}
                 >
-                  {p.cta}
+                  {pending === `${p.plan}-${cycle}` ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Starting…
+                    </>
+                  ) : (
+                    p.cta
+                  )}
                 </Button>
-              </Link>
+              ) : (
+                <Link href="/sign-up" className="mt-6 block">
+                  <Button className="w-full" variant="outline">
+                    {p.cta}
+                  </Button>
+                </Link>
+              )}
+
+              {p.plan && effectiveMonthly !== null && (
+                <p className="mt-2 text-center text-xs text-muted-foreground">
+                  3 days free, then ${effectiveMonthly}/mo. Cancel anytime.
+                </p>
+              )}
 
               <ul className="mt-8 space-y-3">
                 {p.features.map((f) => (
