@@ -7,7 +7,7 @@ export default function SignUpPage() {
   if (!clerkEnabled) redirect('/dashboard');
   return (
     <main className="flex min-h-screen items-center justify-center bg-aurora p-6">
-      <SignUp />
+      <SignUp forceRedirectUrl="/dashboard" signInUrl="/sign-in" />
     </main>
   );
 }

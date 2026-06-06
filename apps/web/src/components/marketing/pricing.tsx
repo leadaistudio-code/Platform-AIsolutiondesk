@@ -6,7 +6,7 @@ import { Check, Loader2 } from 'lucide-react';
 import type { BillingPlan } from '@aisolutiondesk/types';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useLemonCheckout } from '@/lib/use-lemon-checkout';
+import { useRazorpayCheckout } from '@/lib/use-checkout';
 
 /**
  * Pricing section with a monthly/annual billing toggle. Annual billing applies
@@ -58,7 +58,7 @@ const PLANS: Plan[] = [
 
 export function Pricing() {
   const [annual, setAnnual] = useState(false);
-  const { start, pending, error } = useLemonCheckout();
+  const { start, pending, error } = useRazorpayCheckout();
   const cycle = annual ? 'ANNUAL' : 'MONTHLY';
 
   return (

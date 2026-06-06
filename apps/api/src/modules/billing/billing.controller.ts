@@ -1,8 +1,10 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import {
+  ChooseProductsSchema,
   CreateSubscriptionSchema,
   VerifySubscriptionSchema,
+  type ChooseProductsInput,
   type CreateSubscriptionInput,
   type VerifySubscriptionInput,
 } from '@aisolutiondesk/types';
@@ -50,5 +52,16 @@ export class BillingController {
     body: VerifySubscriptionInput,
   ) {
     return this.billing.verifySubscription(ctx, body);
+  }
+
+  /** Customer chooses which AI products to enable (enforced by plan limit). */
+  @Put('products')
+  @RequirePermission('billing:manage')
+  chooseProducts(
+    @CurrentContext() ctx: RequestContext,
+    @Body(new ZodValidationPipe(ChooseProductsSchema))
+    body: ChooseProductsInput,
+  ) {
+    return this.billing.chooseProducts(ctx, body);
   }
 }

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PRODUCT_KEYS, type ProductKey } from './platform';
 
 /**
  * Billing contracts (Razorpay recurring subscriptions). The frontend asks the
@@ -66,4 +67,17 @@ export interface SubscriptionStatusDTO {
   currentPeriodEnd: string | null;
   /** True once a Razorpay subscription is attached. */
   active: boolean;
+  /** How many AI products this plan allows the customer to enable. */
+  productLimit: number;
+  /** Products the org currently has enabled. */
+  products: ProductKey[];
 }
+
+/**
+ * Request: a customer choosing which AI products to enable for their own org.
+ * The server enforces that the count does not exceed the plan's productLimit.
+ */
+export const ChooseProductsSchema = z.object({
+  products: z.array(z.enum(PRODUCT_KEYS)),
+});
+export type ChooseProductsInput = z.infer<typeof ChooseProductsSchema>;

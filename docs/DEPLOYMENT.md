@@ -57,6 +57,16 @@ git push -u origin main
    ENCRYPTION_KEY = <32-byte hex; reuse your local one or generate a new one>
    DEV_AUTH_BYPASS = false
    WEB_URL = https://platform.aisolutiondesk.com
+   # Billing (Razorpay) — required for the pricing page / subscriptions to work.
+   # Use LIVE values once your account is activated (see section 7); test values
+   # are fine for a soft launch.
+   RAZORPAY_KEY_ID = rzp_live_…
+   RAZORPAY_KEY_SECRET = …
+   RAZORPAY_WEBHOOK_SECRET = …
+   RAZORPAY_PLAN_STARTER_MONTHLY = plan_…
+   RAZORPAY_PLAN_STARTER_ANNUAL = plan_…
+   RAZORPAY_PLAN_GROWTH_MONTHLY = plan_…
+   RAZORPAY_PLAN_GROWTH_ANNUAL = plan_…
    ```
    Deploy. The container runs `prisma migrate deploy` then starts. Watch **Logs**
    for "API ready on port…".
@@ -102,6 +112,32 @@ Test keys work on the live subdomain for trying it out. For a polished launch:
 2. Add `platform.aisolutiondesk.com` as the domain (Clerk gives DNS records to add
    in Netlify).
 3. Swap the `pk_live_…` / `sk_live_…` keys into Netlify (web) and Railway (API).
+
+---
+
+## 7. Razorpay for production (real payments)
+
+Test keys let you launch and demo, but to charge real customers:
+
+1. **Activate your account:** Razorpay Dashboard → **Account Activation** → submit
+   business KYC (PAN, bank account, etc.). Razorpay must approve this before live
+   keys work. This can take a few hours to a couple of days.
+2. **Enable Subscriptions in Live mode:** switch the dashboard to **Live**, open
+   **Subscriptions**, and make sure the feature is activated (it is separate from
+   test mode). Without this, recurring payments fail with
+   "the seller does not support recurring payments".
+3. **Generate live keys:** Live mode → **Settings → API Keys → Generate Live Key**
+   → copy the `rzp_live_…` id and secret.
+4. **Re-create the 4 plans in Live mode** (test plans do NOT carry over):
+   **Subscriptions → Plans** → create Starter/Growth × Monthly/Annual at your INR
+   prices → copy each `plan_…` id.
+5. **Add a webhook:** Live mode → **Settings → Webhooks → Add** →
+   URL `https://api.aisolutiondesk.com/webhooks/razorpay`, select the
+   `subscription.*` events, set a **secret**, and copy it.
+6. **Put all of these into Railway** (the API service variables from section 3):
+   the live key id/secret, the webhook secret, and the 4 live plan ids. Redeploy.
+7. **Smoke test:** do one real subscription yourself, confirm the customer lands on
+   `/welcome`, then refund it from the Razorpay dashboard.
 
 ---
 

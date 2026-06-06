@@ -33,10 +33,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
         : 'Internal server error';
 
     if (status >= 500) {
-      this.logger.error(
-        `${req.method} ${req.url}`,
-        exception instanceof Error ? exception.stack : String(exception),
-      );
+      // Most errors are real Error instances (log the stack). But some SDKs —
+      // notably Razorpay — reject with a plain object; String() on those gives
+      // a useless "[object Object]", so serialize them to reveal the cause.
+      const detail =
+        exception instanceof Error
+          ? exception.stack
+          : typeof exception === 'object' && exception !== null
+            ? JSON.stringify(exception, null, 2)
+            : String(exception);
+      this.logger.error(`${req.method} ${req.url}`, detail);
     }
 
     res.status(status).json({

@@ -109,7 +109,7 @@ export function useRazorpayCheckout() {
                 razorpay_subscription_id: response.razorpay_subscription_id,
                 razorpay_signature: response.razorpay_signature,
               });
-              router.push('/dashboard?subscribed=1');
+              router.push('/welcome');
             } catch (e) {
               setError((e as Error).message);
             } finally {

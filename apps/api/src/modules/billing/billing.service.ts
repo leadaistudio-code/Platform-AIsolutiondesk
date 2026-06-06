@@ -4,12 +4,14 @@ import {
   Logger,
 } from '@nestjs/common';
 import { env } from '@aisolutiondesk/config';
-import { prisma, PlanTier, SubscriptionStatus, BillingCycle as DbCycle } from '@aisolutiondesk/db';
+import { prisma, PlanTier, SubscriptionStatus, BillingCycle as DbCycle, Product } from '@aisolutiondesk/db';
 import type {
+  ChooseProductsInput,
   CreateCheckoutDTO,
   CreateCheckoutInput,
   CreateSubscriptionDTO,
   CreateSubscriptionInput,
+  ProductKey,
   SubscriptionStatusDTO,
   VerifySubscriptionInput,
 } from '@aisolutiondesk/types';
@@ -30,6 +32,18 @@ const TRIAL_DAYS = 3;
 const PLAN_TO_TIER: Record<'STARTER' | 'GROWTH', PlanTier> = {
   STARTER: PlanTier.STARTER,
   GROWTH: PlanTier.PRO,
+};
+
+/**
+ * How many AI products a customer on each tier may enable. This is what turns
+ * "Starter = 1 product / Growth = up to 3" from the pricing page into an
+ * enforceable rule when the customer picks their agents.
+ */
+const PRODUCT_LIMIT: Record<PlanTier, number> = {
+  [PlanTier.FREE]: 0,
+  [PlanTier.STARTER]: 1,
+  [PlanTier.PRO]: 3,
+  [PlanTier.ENTERPRISE]: 8,
 };
 
 @Injectable()
@@ -203,7 +217,46 @@ export class BillingService {
     this.logger.log(
       `Subscription ACTIVE for org ${ctx.organizationId} (${updated.razorpaySubscriptionId})`,
     );
-    return this.toDTO(updated);
+    return this.toDTO(updated, await this.orgProducts(ctx.organizationId));
+  }
+
+  /**
+   * Let the customer choose which AI products to enable for their own org,
+   * enforcing the plan's product limit. This is the self-serve version of the
+   * admin product toggles — a Starter customer can enable 1, Growth up to 3.
+   */
+  async chooseProducts(
+    ctx: RequestContext,
+    input: ChooseProductsInput,
+  ): Promise<SubscriptionStatusDTO> {
+    const sub = await prisma.subscription.findUnique({
+      where: { organizationId: ctx.organizationId },
+    });
+    const tier = sub?.tier ?? PlanTier.FREE;
+    const limit = PRODUCT_LIMIT[tier];
+
+    // De-duplicate, then enforce the plan's allowance.
+    const unique = [...new Set(input.products)];
+    if (unique.length > limit) {
+      throw new BadRequestException(
+        `Your ${tier} plan allows ${limit} AI product${limit === 1 ? '' : 's'}. ` +
+          `You selected ${unique.length}.`,
+      );
+    }
+
+    await prisma.organization.update({
+      where: { id: ctx.organizationId },
+      data: { products: unique as Product[] },
+    });
+    this.logger.log(
+      `Org ${ctx.organizationId} enabled products: ${unique.join(', ') || '(none)'}`,
+    );
+
+    return this.toDTO(
+      sub,
+      unique as ProductKey[],
+      tier,
+    );
   }
 
   /** Current subscription status for the org (defaults to FREE if none). */
@@ -211,6 +264,7 @@ export class BillingService {
     const sub = await prisma.subscription.findUnique({
       where: { organizationId: ctx.organizationId },
     });
+    const products = await this.orgProducts(ctx.organizationId);
     if (!sub) {
       return {
         tier: 'FREE',
@@ -219,9 +273,20 @@ export class BillingService {
         seats: 0,
         currentPeriodEnd: null,
         active: false,
+        productLimit: PRODUCT_LIMIT[PlanTier.FREE],
+        products,
       };
     }
-    return this.toDTO(sub);
+    return this.toDTO(sub, products);
+  }
+
+  /** Fetch the products an org currently has enabled. */
+  private async orgProducts(organizationId: string): Promise<ProductKey[]> {
+    const org = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { products: true },
+    });
+    return (org?.products as ProductKey[]) ?? [];
   }
 
   /**
@@ -254,25 +319,32 @@ export class BillingService {
     );
   }
 
-  private toDTO(sub: {
-    tier: PlanTier;
-    status: SubscriptionStatus;
-    billingCycle: DbCycle;
-    seats: number;
-    currentPeriodEnd: Date | null;
-    razorpaySubscriptionId: string | null;
-    lemonSubscriptionId: string | null;
-  }): SubscriptionStatusDTO {
+  private toDTO(
+    sub: {
+      tier: PlanTier;
+      status: SubscriptionStatus;
+      billingCycle: DbCycle;
+      seats: number;
+      currentPeriodEnd: Date | null;
+      razorpaySubscriptionId: string | null;
+      lemonSubscriptionId: string | null;
+    } | null,
+    products: ProductKey[],
+    tierOverride?: PlanTier,
+  ): SubscriptionStatusDTO {
+    const tier = tierOverride ?? sub?.tier ?? PlanTier.FREE;
     const hasProvider = Boolean(
-      sub.razorpaySubscriptionId || sub.lemonSubscriptionId,
+      sub?.razorpaySubscriptionId || sub?.lemonSubscriptionId,
     );
     return {
-      tier: sub.tier,
-      status: sub.status,
-      cycle: sub.billingCycle,
-      seats: sub.seats,
-      currentPeriodEnd: sub.currentPeriodEnd?.toISOString() ?? null,
-      active: hasProvider && sub.status === 'ACTIVE',
+      tier,
+      status: sub?.status ?? 'TRIALING',
+      cycle: sub?.billingCycle ?? 'MONTHLY',
+      seats: sub?.seats ?? 0,
+      currentPeriodEnd: sub?.currentPeriodEnd?.toISOString() ?? null,
+      active: hasProvider && sub?.status === 'ACTIVE',
+      productLimit: PRODUCT_LIMIT[tier],
+      products,
     };
   }
 }

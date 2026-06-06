@@ -26,6 +26,7 @@ import type {
   CreateSubscriptionDTO,
   VerifySubscriptionInput,
   SubscriptionStatusDTO,
+  ChooseProductsInput,
   CreateCheckoutInput,
   CreateCheckoutDTO,
   FinanceMetricsDTO,
@@ -304,6 +305,12 @@ export function buildApi(getToken: TokenGetter) {
     verifySubscription: (body: VerifySubscriptionInput) =>
       request<SubscriptionStatusDTO>('/billing/verify', {
         method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    // Customer self-serve: choose which AI products to enable (plan-limited).
+    chooseProducts: (body: ChooseProductsInput) =>
+      request<SubscriptionStatusDTO>('/billing/products', {
+        method: 'PUT',
         body: JSON.stringify(body),
       }),
     // Lemon Squeezy hosted checkout (Merchant of Record, international).
