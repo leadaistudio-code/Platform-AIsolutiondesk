@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { Suspense, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { CreateOrganization, useOrganization } from '@clerk/nextjs';
@@ -32,7 +32,25 @@ function isCycle(v: string | null): v is BillingCycle {
  * Razorpay Checkout for the plan. On success, useRazorpayCheckout sends them to
  * /welcome to pick the agents their plan allows.
  */
+/**
+ * useSearchParams() requires a Suspense boundary during the production build
+ * (Next.js 15). Wrap the inner component so the page prerenders cleanly.
+ */
 export default function GetStartedPage() {
+  return (
+    <Suspense
+      fallback={
+        <Shell>
+          <div className="text-center text-muted-foreground">Loading…</div>
+        </Shell>
+      }
+    >
+      <GetStartedInner />
+    </Suspense>
+  );
+}
+
+function GetStartedInner() {
   const params = useSearchParams();
   const plan = params.get('plan');
   const cycle = params.get('cycle');
