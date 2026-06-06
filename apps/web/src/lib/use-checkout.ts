@@ -79,9 +79,15 @@ export function useRazorpayCheckout() {
       try {
         // 1. Create the subscription server-side.
         const sub = await api.createSubscription({ plan, cycle }).catch((e: Error) => {
-          // Not signed in (or not allowed) → send to sign-up to create an account.
+          const q = `plan=${plan}&cycle=${cycle}`;
+          // Signed in but no organization yet → create one first, then resume.
+          if (/no active organization/i.test(e.message)) {
+            router.push(`/get-started?${q}`);
+            return null;
+          }
+          // Not signed in → create an account first, then resume at /get-started.
           if (/401|403/.test(e.message)) {
-            router.push('/sign-up');
+            router.push(`/sign-up?${q}`);
             return null;
           }
           throw e;
