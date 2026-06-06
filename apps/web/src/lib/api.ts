@@ -27,6 +27,8 @@ import type {
   VerifySubscriptionInput,
   SubscriptionStatusDTO,
   ChooseProductsInput,
+  PublicCheckoutInput,
+  ClaimSubscriptionInput,
   CreateCheckoutInput,
   CreateCheckoutDTO,
   FinanceMetricsDTO,
@@ -311,6 +313,24 @@ export function buildApi(getToken: TokenGetter) {
     chooseProducts: (body: ChooseProductsInput) =>
       request<SubscriptionStatusDTO>('/billing/products', {
         method: 'PUT',
+        body: JSON.stringify(body),
+      }),
+
+    // ── Payment-first onboarding (no account yet) ──
+    createPublicSubscription: (body: PublicCheckoutInput) =>
+      request<CreateSubscriptionDTO>('/billing/public/subscription', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    verifyPublicSubscription: (body: VerifySubscriptionInput) =>
+      request<{ ok: true }>('/billing/public/verify', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    // After sign-up: link the paid subscription to the new org.
+    claimSubscription: (body: ClaimSubscriptionInput) =>
+      request<SubscriptionStatusDTO>('/billing/claim', {
+        method: 'POST',
         body: JSON.stringify(body),
       }),
     // Lemon Squeezy hosted checkout (Merchant of Record, international).

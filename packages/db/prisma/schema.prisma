@@ -398,6 +398,24 @@ model Subscription {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
+/// A subscription paid for BEFORE an account exists (payment-first onboarding).
+/// Created when a visitor checks out from the pricing page without being signed
+/// in; "claimed" (linked to a real org's Subscription) after they sign up.
+model PendingSubscription {
+  id                     String       @id @default(cuid())
+  razorpaySubscriptionId String       @unique
+  razorpayPlanId         String
+  plan                   String // BillingPlan: STARTER | GROWTH
+  billingCycle           BillingCycle @default(MONTHLY)
+  // CREATED (checkout opened) → PAID (signature verified) → CLAIMED (linked to org)
+  status                 String       @default("CREATED")
+  email                  String?
+  trialEndsAt            DateTime?
+  claimedByOrgId         String?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+}
+
 /// Metered usage for billing + cost control (per product / model).
 model UsageRecord {
   id             String   @id @default(cuid())

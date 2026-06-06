@@ -7,11 +7,13 @@ import { env } from '@aisolutiondesk/config';
 import { prisma, PlanTier, SubscriptionStatus, BillingCycle as DbCycle, Product } from '@aisolutiondesk/db';
 import type {
   ChooseProductsInput,
+  ClaimSubscriptionInput,
   CreateCheckoutDTO,
   CreateCheckoutInput,
   CreateSubscriptionDTO,
   CreateSubscriptionInput,
   ProductKey,
+  PublicCheckoutInput,
   SubscriptionStatusDTO,
   VerifySubscriptionInput,
 } from '@aisolutiondesk/types';
@@ -185,6 +187,136 @@ export class BillingService {
       trialDays: eligibleForTrial ? TRIAL_DAYS : 0,
       trialEndsAt: trialEnd?.toISOString() ?? null,
     };
+  }
+
+  /**
+   * Payment-first onboarding: create a Razorpay subscription for a visitor who
+   * has NO account yet. We persist it as a PendingSubscription (keyed by the
+   * Razorpay subscription id) and return what Checkout needs. After they sign
+   * up, claimSubscription() links it to their new organization.
+   */
+  async createPublicSubscription(
+    input: PublicCheckoutInput,
+  ): Promise<CreateSubscriptionDTO> {
+    const planId = this.razorpay.planId(input.plan, input.cycle);
+    if (!planId) {
+      throw new BadRequestException(
+        `No Razorpay plan configured for ${input.plan} ${input.cycle}. ` +
+          `Set RAZORPAY_PLAN_${input.plan}_${input.cycle}.`,
+      );
+    }
+    const seats = PLAN_SEATS[input.plan];
+    // Every public checkout is a brand-new customer, so always grant the trial.
+    const trialEnd = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+    const startAt = Math.floor(trialEnd.getTime() / 1000);
+
+    const sub = await this.razorpay.createSubscription({
+      planId,
+      cycle: input.cycle,
+      seats,
+      startAt,
+      notes: { plan: input.plan, flow: 'public' },
+    });
+
+    await prisma.pendingSubscription.create({
+      data: {
+        razorpaySubscriptionId: sub.id,
+        razorpayPlanId: planId,
+        plan: input.plan,
+        billingCycle: input.cycle as DbCycle,
+        status: 'CREATED',
+        email: input.email ?? null,
+        trialEndsAt: trialEnd,
+      },
+    });
+
+    return {
+      subscriptionId: sub.id,
+      keyId: this.razorpay.keyId,
+      plan: input.plan,
+      cycle: input.cycle,
+      trialDays: TRIAL_DAYS,
+      trialEndsAt: trialEnd.toISOString(),
+    };
+  }
+
+  /**
+   * Verify the signature for a public (pre-account) checkout and mark the
+   * PendingSubscription PAID. No org context — the link to an org happens later
+   * in claimSubscription().
+   */
+  async verifyPublicSubscription(
+    input: VerifySubscriptionInput,
+  ): Promise<{ ok: true }> {
+    const ok = this.razorpay.verifyCheckoutSignature({
+      paymentId: input.razorpay_payment_id,
+      subscriptionId: input.razorpay_subscription_id,
+      signature: input.razorpay_signature,
+    });
+    if (!ok) throw new BadRequestException('Invalid payment signature');
+
+    const pending = await prisma.pendingSubscription.findUnique({
+      where: { razorpaySubscriptionId: input.razorpay_subscription_id },
+    });
+    if (!pending) throw new BadRequestException('Unknown subscription');
+    if (pending.status === 'CREATED') {
+      await prisma.pendingSubscription.update({
+        where: { id: pending.id },
+        data: { status: 'PAID' },
+      });
+    }
+    return { ok: true };
+  }
+
+  /**
+   * Link a previously-paid public subscription to the signed-in user's org.
+   * Idempotent for the same org; rejects if already claimed by someone else.
+   */
+  async claimSubscription(
+    ctx: RequestContext,
+    input: ClaimSubscriptionInput,
+  ): Promise<SubscriptionStatusDTO> {
+    const pending = await prisma.pendingSubscription.findUnique({
+      where: { razorpaySubscriptionId: input.razorpay_subscription_id },
+    });
+    if (!pending) throw new BadRequestException('Subscription not found');
+
+    if (pending.status === 'CLAIMED') {
+      if (pending.claimedByOrgId === ctx.organizationId) {
+        // Already linked to this org — just return current state.
+        return this.getStatus(ctx);
+      }
+      throw new BadRequestException('This subscription has already been claimed.');
+    }
+    if (pending.status !== 'PAID') {
+      throw new BadRequestException('Payment not completed for this subscription.');
+    }
+
+    const plan = pending.plan as 'STARTER' | 'GROWTH';
+    const tier = PLAN_TO_TIER[plan] ?? PlanTier.FREE;
+    const seats = PLAN_SEATS[plan] ?? 1;
+    const data = {
+      tier,
+      status: SubscriptionStatus.ACTIVE,
+      razorpaySubscriptionId: pending.razorpaySubscriptionId,
+      razorpayPlanId: pending.razorpayPlanId,
+      billingCycle: pending.billingCycle,
+      seats,
+      currentPeriodEnd: pending.trialEndsAt,
+    };
+    await prisma.subscription.upsert({
+      where: { organizationId: ctx.organizationId },
+      create: { organizationId: ctx.organizationId, ...data },
+      update: data,
+    });
+    await prisma.pendingSubscription.update({
+      where: { id: pending.id },
+      data: { status: 'CLAIMED', claimedByOrgId: ctx.organizationId },
+    });
+    this.logger.log(
+      `Org ${ctx.organizationId} claimed subscription ${pending.razorpaySubscriptionId} (${plan})`,
+    );
+    return this.getStatus(ctx);
   }
 
   /**

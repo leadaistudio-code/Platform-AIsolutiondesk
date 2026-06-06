@@ -58,6 +58,26 @@ export const VerifySubscriptionSchema = z.object({
 });
 export type VerifySubscriptionInput = z.infer<typeof VerifySubscriptionSchema>;
 
+/**
+ * Request: start a subscription BEFORE an account exists (payment-first
+ * onboarding). No auth required; the email is whatever the visitor enters.
+ */
+export const PublicCheckoutSchema = z.object({
+  plan: BillingPlanSchema,
+  cycle: BillingCycleSchema,
+  email: z.string().email().optional(),
+});
+export type PublicCheckoutInput = z.infer<typeof PublicCheckoutSchema>;
+
+/**
+ * Request: after signing up, link a previously-paid subscription to the new
+ * account's organization. The id was stored client-side after public checkout.
+ */
+export const ClaimSubscriptionSchema = z.object({
+  razorpay_subscription_id: z.string().min(1),
+});
+export type ClaimSubscriptionInput = z.infer<typeof ClaimSubscriptionSchema>;
+
 /** The current org's subscription state, returned by GET /billing/subscription. */
 export interface SubscriptionStatusDTO {
   tier: 'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE';

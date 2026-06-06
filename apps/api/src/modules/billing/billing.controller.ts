@@ -2,13 +2,18 @@ import { Body, Controller, Get, Post, Put } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import {
   ChooseProductsSchema,
+  ClaimSubscriptionSchema,
   CreateSubscriptionSchema,
+  PublicCheckoutSchema,
   VerifySubscriptionSchema,
   type ChooseProductsInput,
+  type ClaimSubscriptionInput,
   type CreateSubscriptionInput,
+  type PublicCheckoutInput,
   type VerifySubscriptionInput,
 } from '@aisolutiondesk/types';
 import { CurrentContext } from '../../common/decorators/current-context.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import type { RequestContext } from '../../common/context/request-context';
@@ -63,5 +68,38 @@ export class BillingController {
     body: ChooseProductsInput,
   ) {
     return this.billing.chooseProducts(ctx, body);
+  }
+
+  // ── Payment-first onboarding (no account yet) ──
+
+  /** Start a Razorpay subscription before the visitor has an account. */
+  @Public()
+  @Post('public/subscription')
+  createPublic(
+    @Body(new ZodValidationPipe(PublicCheckoutSchema))
+    body: PublicCheckoutInput,
+  ) {
+    return this.billing.createPublicSubscription(body);
+  }
+
+  /** Verify a public checkout's signature (marks the pending sub PAID). */
+  @Public()
+  @Post('public/verify')
+  verifyPublic(
+    @Body(new ZodValidationPipe(VerifySubscriptionSchema))
+    body: VerifySubscriptionInput,
+  ) {
+    return this.billing.verifyPublicSubscription(body);
+  }
+
+  /** After sign-up: link a previously-paid subscription to this org. */
+  @Post('claim')
+  @RequirePermission('billing:manage')
+  claim(
+    @CurrentContext() ctx: RequestContext,
+    @Body(new ZodValidationPipe(ClaimSubscriptionSchema))
+    body: ClaimSubscriptionInput,
+  ) {
+    return this.billing.claimSubscription(ctx, body);
   }
 }

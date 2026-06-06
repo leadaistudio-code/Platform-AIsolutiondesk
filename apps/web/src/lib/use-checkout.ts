@@ -2,18 +2,28 @@
 
 import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@clerk/nextjs';
 import type { BillingPlan, BillingCycle } from '@aisolutiondesk/types';
 import { useApi } from './api-client';
 
 /**
- * Razorpay Checkout, wired to our billing API. `start(plan, cycle)`:
- *   1. asks the API to create a Razorpay subscription,
- *   2. loads + opens Razorpay Checkout with it,
- *   3. verifies the signed result, then sends the user to the dashboard.
- *
- * If the visitor isn't signed in (API returns 401/403), they're routed to
- * sign-up first — they can complete checkout once they have an account.
+ * Razorpay Checkout for PAYMENT-FIRST onboarding. `start(plan, cycle)`:
+ *   1. asks the API to create a Razorpay subscription WITHOUT requiring login,
+ *   2. loads + opens Razorpay Checkout,
+ *   3. verifies the signed result and remembers the subscription id locally,
+ *   4. routes the visitor to sign-up (or, if already signed in, to /welcome),
+ *      where the paid subscription is "claimed" onto their organization.
  */
+
+/** localStorage key holding a paid-but-unclaimed Razorpay subscription id. */
+export const PENDING_SUB_KEY = 'pendingRazorpaySub';
+
+const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+// Build-time switch (mirrors api-client) so useAuth is only called when Clerk
+// is mounted; in preview mode we treat the visitor as "signed in" (demo org).
+const useIsSignedIn = clerkEnabled
+  ? () => useAuth().isSignedIn ?? false
+  : () => true;
 
 interface RazorpayHandlerResponse {
   razorpay_payment_id: string;
@@ -69,6 +79,7 @@ function loadRazorpayScript(): Promise<boolean> {
 export function useRazorpayCheckout() {
   const api = useApi();
   const router = useRouter();
+  const isSignedIn = useIsSignedIn();
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,22 +88,8 @@ export function useRazorpayCheckout() {
       setError(null);
       setPending(`${plan}-${cycle}`);
       try {
-        // 1. Create the subscription server-side.
-        const sub = await api.createSubscription({ plan, cycle }).catch((e: Error) => {
-          const q = `plan=${plan}&cycle=${cycle}`;
-          // Signed in but no organization yet → create one first, then resume.
-          if (/no active organization/i.test(e.message)) {
-            router.push(`/get-started?${q}`);
-            return null;
-          }
-          // Not signed in → create an account first, then resume at /get-started.
-          if (/401|403/.test(e.message)) {
-            router.push(`/sign-up?${q}`);
-            return null;
-          }
-          throw e;
-        });
-        if (!sub) return;
+        // 1. Create the subscription server-side — NO login required.
+        const sub = await api.createPublicSubscription({ plan, cycle });
 
         // 2. Make sure the Checkout script is available.
         const ready = await loadRazorpayScript();
@@ -110,12 +107,29 @@ export function useRazorpayCheckout() {
           modal: { ondismiss: () => setPending(null) },
           handler: async (response) => {
             try {
-              await api.verifySubscription({
+              // 4. Verify the payment, remember the subscription id, then send
+              //    the visitor to create their account (or straight to /welcome
+              //    if already signed in) where the subscription is claimed.
+              await api.verifyPublicSubscription({
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_subscription_id: response.razorpay_subscription_id,
                 razorpay_signature: response.razorpay_signature,
               });
-              router.push('/welcome');
+              try {
+                window.localStorage.setItem(
+                  PENDING_SUB_KEY,
+                  response.razorpay_subscription_id,
+                );
+              } catch {
+                /* localStorage unavailable — /welcome will fall back to status */
+              }
+              if (isSignedIn) {
+                router.push('/welcome');
+              } else {
+                router.push(
+                  `/sign-up?redirect_url=${encodeURIComponent('/welcome')}`,
+                );
+              }
             } catch (e) {
               setError((e as Error).message);
             } finally {
@@ -133,7 +147,7 @@ export function useRazorpayCheckout() {
         setPending(null);
       }
     },
-    [api, router],
+    [api, router, isSignedIn],
   );
 
   return { start, pending, error };
